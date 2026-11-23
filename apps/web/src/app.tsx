@@ -1,5 +1,6 @@
 import { Filters } from './components/filters';
 import { ReviewerSelect } from './components/reviewer-select';
+import { StudyPanel } from './components/study-panel';
 import { Worklist } from './components/worklist';
 import { useSessionStore } from './stores/session-store';
 
@@ -20,7 +21,7 @@ export function App() {
           {selectedStudyId === null ? (
             <p>Select a study to view it.</p>
           ) : (
-            <p>Selected: {selectedStudyId}</p>
+            <StudyPanel key={selectedStudyId} studyId={selectedStudyId} />
           )}
         </section>
       </main>
