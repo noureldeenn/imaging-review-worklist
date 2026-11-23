@@ -10,6 +10,9 @@
   "scripts": {
     "db:up": "docker compose -f docker/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f docker/docker-compose.yml down",
+    "app:up": "docker compose -f docker/docker-compose.yml --profile app up -d --build --wait",
+    "app:down": "docker compose -f docker/docker-compose.yml --profile app down",
+    "app:logs": "docker compose -f docker/docker-compose.yml --profile app logs -f api web",
     "db:migrate": "npm -w apps/api run prisma:deploy && npm -w apps/api run prisma:seed",
     "db:reset": "npm -w apps/api run prisma:reset",
     "dev": "concurrently -n api,web \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",

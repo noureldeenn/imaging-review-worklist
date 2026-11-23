@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+.git
+.github
+.husky
+.superpowers
+.env
+**/.env
+docs
+docker

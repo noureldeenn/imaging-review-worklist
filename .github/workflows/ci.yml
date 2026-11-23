@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  DATABASE_URL: postgresql://imaging:imaging@localhost:5432/imaging
+  DATABASE_URL_TEST: postgresql://imaging:imaging@localhost:5432/imaging_test
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: imaging
+          POSTGRES_PASSWORD: imaging
+          POSTGRES_DB: imaging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imaging"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create test database
+        run: PGPASSWORD=imaging psql -h localhost -U imaging -c 'CREATE DATABASE imaging_test'
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run db:migrate:test
+      - run: npm run test:api
+      - run: npm run test:web
+      - run: npm run build
+      - run: npm run test:contention
+
+  e2e:
+    needs: verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: imaging
+          POSTGRES_PASSWORD: imaging
+          POSTGRES_DB: imaging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imaging"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create test database
+        run: PGPASSWORD=imaging psql -h localhost -U imaging -c 'CREATE DATABASE imaging_test'
+      - run: npx playwright install --with-deps chromium
+      - run: npm run db:migrate:test
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
