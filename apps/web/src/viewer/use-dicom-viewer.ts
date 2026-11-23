@@ -108,15 +108,14 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
 
       loaded = true;
       viewport.render();
+      // Read everything that can throw before publishing the load, so a
+      // failure here cannot leave counters set next to an error state.
+      const metadata = readMetadata(imageId);
+      const windowLevel = readWindowLevel(viewport);
       viewportRef.current = viewport;
       viewerStats.currentImageId = imageId;
       viewerStats.loadsCompleted += 1;
-      setView({
-        state: "ready",
-        error: null,
-        metadata: readMetadata(imageId),
-        windowLevel: readWindowLevel(viewport),
-      });
+      setView({ state: "ready", error: null, metadata, windowLevel });
     };
     run().catch(() => {
       // Engine/viewport setup itself failed (e.g. no canvas support).

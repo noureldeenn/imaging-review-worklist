@@ -16,6 +16,7 @@ let ready: Promise<void> | null = null;
 export function initCornerstone(): Promise<void> {
   if (ready === null) {
     ready = Promise.resolve().then(() => {
+      // CPU via init() config + re-assert: in 5.x setUseCPURendering() before init() makes init() a no-op.
       const defaults = getConfiguration();
       init({ ...defaults, rendering: { ...defaults.rendering, useCPURendering: true } });
       setUseCPURendering(true, false);

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Deferred } from "../test/deferred";
+import { deferred, type Deferred } from "../test/deferred";
 import { useDicomViewer } from "./use-dicom-viewer";
 import { viewerStats } from "./viewer-stats";
 
@@ -13,7 +13,17 @@ const fake = vi.hoisted(() => ({
   engines: [] as Array<{ id: string; destroyed: boolean }>,
   stacks: [] as PendingStack[],
   renders: 0,
+  // Calls that reach an engine after destroy() are recorded, not thrown, so a
+  // missing stale guard cannot hide behind the hook's backstop catch.
+  rendersAfterDestroy: 0,
+  setStackAfterDestroy: 0,
   observers: new Set<object>(),
+  // When set, initCornerstone() waits on this promise.
+  initGate: null as Promise<void> | null,
+}));
+
+vi.mock("./cornerstone-init", () => ({
+  initCornerstone: () => fake.initGate ?? Promise.resolve(),
 }));
 
 vi.mock("@cornerstonejs/core", async () => {
@@ -24,13 +34,14 @@ vi.mock("@cornerstonejs/core", async () => {
     private readonly onWheel = () => undefined;
     readonly viewport = {
       setStack: (ids: string[]) => {
+        if (this.destroyed) fake.setStackAfterDestroy += 1;
         const d = deferred<string>();
         fake.stacks.push({ imageId: ids[0] ?? "", d });
         return d.promise;
       },
       render: () => {
-        if (this.destroyed) throw new Error("render on destroyed engine");
-        fake.renders += 1;
+        if (this.destroyed) fake.rendersAfterDestroy += 1;
+        else fake.renders += 1;
       },
       getProperties: () => ({ voiRange: { lower: 0, upper: 400 } }),
       setProperties: () => undefined,
@@ -45,7 +56,6 @@ vi.mock("@cornerstonejs/core", async () => {
       element.addEventListener("wheel", this.onWheel);
     }
     getViewport() {
-      if (this.destroyed) throw new Error("getViewport on destroyed engine");
       return this.viewport;
     }
     resize() {}
@@ -63,18 +73,10 @@ vi.mock("@cornerstonejs/core", async () => {
   return {
     RenderingEngine,
     Enums: { ViewportType: { STACK: "stack" } },
-    getConfiguration: () => ({ rendering: {} }),
-    init: () => true,
-    setUseCPURendering: () => undefined,
     cache: { removeImageLoadObject: () => undefined },
     metaData: { get: (type: string) => modules[type] },
   };
 });
-
-vi.mock("@cornerstonejs/dicom-image-loader", () => ({
-  default: { init: () => undefined },
-  init: () => undefined,
-}));
 
 class FakeResizeObserver {
   constructor(_cb: ResizeObserverCallback) {}
@@ -116,7 +118,10 @@ beforeEach(() => {
   fake.engines.length = 0;
   fake.stacks.length = 0;
   fake.renders = 0;
+  fake.rendersAfterDestroy = 0;
+  fake.setStackAfterDestroy = 0;
   fake.observers.clear();
+  fake.initGate = null;
   Object.assign(viewerStats, {
     engines: 0,
     observers: 0,
@@ -146,6 +151,8 @@ describe("useDicomViewer", () => {
 
     await act(async () => a.d.resolve("late"));
 
+    expect(fake.rendersAfterDestroy).toBe(0);
+    expect(fake.setStackAfterDestroy).toBe(0);
     expect(viewerStats.currentImageId).toMatch(/study-B\/file$/);
     expect(viewerStats.loadsDiscarded).toBe(1);
     expect(viewerStats.loadsCompleted).toBe(1);
@@ -173,6 +180,8 @@ describe("useDicomViewer", () => {
     await act(async () => a.d.resolve("late"));
 
     expect(fake.renders).toBe(rendersBefore);
+    expect(fake.rendersAfterDestroy).toBe(0);
+    expect(fake.setStackAfterDestroy).toBe(0);
     expect(viewerStats.engines).toBe(0);
     expect(viewerStats.currentImageId).toBeNull();
     expect(viewerStats.loadsCompleted).toBe(0);
@@ -218,5 +227,37 @@ describe("useDicomViewer", () => {
     expect(result.current.error).toBeNull();
     expect(viewerStats.currentImageId).toMatch(/study-001\/file$/);
     expect(viewerStats.engines).toBe(1);
+  });
+  it("a stale load for A that rejects after the switch leaves B ready", async () => {
+    const { result, rerender } = mountViewer("study-A");
+    const a = await waitForStack("study-A");
+
+    rerender({ id: "study-B" });
+    const b = await waitForStack("study-B");
+    await act(async () => b.d.resolve("ok"));
+    await waitFor(() => expect(result.current.state).toBe("ready"));
+
+    await act(async () => a.d.reject(new Error("late decode failure")));
+
+    expect(result.current.state).toBe("ready");
+    expect(result.current.error).toBeNull();
+    expect(viewerStats.currentImageId).toMatch(/study-B\/file$/);
+    expect(viewerStats.loadsDiscarded).toBe(1);
+    expect(fake.rendersAfterDestroy).toBe(0);
+  });
+
+  it("closing while cornerstone init is pending never creates an engine", async () => {
+    const gate = deferred<void>();
+    fake.initGate = gate.promise;
+    const { unmount } = mountViewer("study-A");
+    unmount();
+
+    await act(async () => gate.resolve());
+
+    expect(fake.engines).toHaveLength(0);
+    expect(fake.stacks).toHaveLength(0);
+    expect(viewerStats.engines).toBe(0);
+    expect(viewerStats.observers).toBe(0);
+    expect(viewerStats.loadsDiscarded).toBe(1);
   });
 });
