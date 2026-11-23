@@ -44,7 +44,7 @@ export function useClaimStudy() {
       }),
     onSuccess: async (dto) => {
       await applyServerState(queryClient, dto);
-      await queryClient.invalidateQueries({ queryKey: studiesKeys.all });
+      await queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
     },
     onError: (err, v) => handleMutationError(queryClient, v.id, err),
   });
@@ -67,7 +67,7 @@ export function useCompleteStudy() {
     onSuccess: async (dto) => {
       await applyServerState(queryClient, dto);
       useSessionStore.getState().setDraft(dto.id, "");
-      await queryClient.invalidateQueries({ queryKey: studiesKeys.all });
+      await queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
     },
     onError: (err, v) => handleMutationError(queryClient, v.id, err),
   });

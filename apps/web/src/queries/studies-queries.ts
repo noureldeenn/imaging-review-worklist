@@ -3,6 +3,7 @@ import { api, type StudyFilters } from '../api/client';
 
 export const studiesKeys = {
   all: ['studies'] as const,
+  lists: ['studies', 'list'] as const,
   list: (filters: StudyFilters) => ['studies', 'list', filters] as const,
   detail: (id: string) => ['studies', 'detail', id] as const,
 };

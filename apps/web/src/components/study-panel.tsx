@@ -82,6 +82,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
       )}
       <MutationStatus
         studyId={study.id}
+        version={study.version}
         outcome={outcome}
         onRefreshed={() => {
           claim.reset();
