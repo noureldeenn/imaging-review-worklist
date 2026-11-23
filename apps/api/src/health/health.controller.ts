@@ -1,4 +1,4 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Logger, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -7,6 +7,8 @@ type StatusSetter = { status(code: number): unknown };
 @ApiTags('health')
 @Controller()
 export class HealthController {
+  private readonly logger = new Logger(HealthController.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   @Get('health')
@@ -26,7 +28,10 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { ok: true, db: 'up' };
-    } catch {
+    } catch (err) {
+      this.logger.warn(
+        `Readiness check failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
       res.status(503);
       return { ok: false, db: 'down' };
     }

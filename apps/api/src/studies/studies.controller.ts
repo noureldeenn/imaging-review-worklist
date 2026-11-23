@@ -26,9 +26,7 @@ import {
 import { StudiesService } from './studies.service';
 
 // @types/express is not installed; only setHeader is needed.
-type HeaderSetter = {
-  setHeader(name: string, value: string | number): unknown;
-};
+type HeaderSetter = { setHeader(name: string, value: string | number): unknown };
 
 const STUDY_OK = { schema: STUDY_REF };
 const NOT_FOUND = [
@@ -65,14 +63,8 @@ export class StudiesController {
   constructor(private readonly studies: StudiesService) {}
 
   @Get()
-  @ApiOperation({
-    summary: 'List studies, optionally filtered by status and modality',
-  })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: ['Unassigned', 'InReview', 'Completed'],
-  })
+  @ApiOperation({ summary: 'List studies, optionally filtered by status and modality' })
+  @ApiQuery({ name: 'status', required: false, enum: ['Unassigned', 'InReview', 'Completed'] })
   @ApiQuery({ name: 'modality', required: false, type: String })
   @ApiResponse({
     status: 200,
@@ -81,8 +73,7 @@ export class StudiesController {
   })
   @ApiErrorResponse(...BAD_REQUEST)
   list(
-    @Query(new ZodValidationPipe(ListStudiesQuery))
-    query: ListStudiesQueryInput,
+    @Query(new ZodValidationPipe(ListStudiesQuery)) query: ListStudiesQueryInput,
   ): Promise<StudyDto[]> {
     return this.studies.list(query);
   }
@@ -120,9 +111,7 @@ export class StudiesController {
   }
 
   @Post(':id/claim')
-  @ApiOperation({
-    summary: 'Claim an unassigned study for review (optimistic concurrency)',
-  })
+  @ApiOperation({ summary: 'Claim an unassigned study for review (optimistic concurrency)' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ schema: zodSchema(ClaimBody) })
   @ApiResponse({ status: 200, description: 'Claimed study', ...STUDY_OK })
