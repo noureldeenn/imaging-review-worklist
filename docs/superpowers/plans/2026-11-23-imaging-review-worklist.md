@@ -373,13 +373,91 @@ test('five close/reopen cycles do not accumulate handlers or engines', …) // b
 
 ---
 
-### Task 11: README, full verification, submission packaging
+### Task 11: API hardening — OpenAPI, security headers, structured logging, readiness
+
+**Files:**
+- Create: `apps/api/src/common/openapi.ts`, `src/common/logging.ts`, `src/common/request-id.middleware.ts`
+- Modify: `apps/api/src/main.ts`, `src/app.module.ts`, `src/health/health.controller.ts`, `src/studies/studies.controller.ts`, `src/reviewers/reviewers.controller.ts`, `src/config.ts`
+- Test: `apps/api/test/hardening.test.ts`
+
+**Interfaces:**
+- Produces: `GET /api/readyz` → 200 `{ ok: true, db: 'up' }` or 503 `{ ok: false, db: 'down' }` (runs `SELECT 1`). `GET /api/health` unchanged.
+- Produces: `GET /docs` (Scalar UI via `@scalar/nestjs-api-reference`) and `GET /docs/openapi.json` (OpenAPI 3.x built with `@nestjs/swagger` `DocumentBuilder`; Zod DTOs surfaced by converting each schema with `z.toJSONSchema` into `@ApiBody({ schema })` / `@ApiResponse({ schema })`). Every route has `@ApiOperation`, an `@ApiResponse` for each status it returns (400/403/404/409/412 examples use the error envelope with synthetic values), and a tag (`studies`, `reviewers`, `health`). Gated by `API_DOCS_ENABLED` (default `true`) read in `loadConfig()`.
+- Produces: `helmet()` with defaults; CORS allowing only `WEB_ORIGIN` (default `http://localhost:5173`, read in `loadConfig()`); `X-Request-Id` echoed if supplied, otherwise a generated uuid, on every response.
+- Produces: `nestjs-pino` logger with `redact.paths` = the PHI list (`patientName, patientId, mrn, dob, birthDate, studyDescription, accessionNumber, referringPhysicianName, performingPhysicianName, requestingPhysician, patientAddress, patientPhone, patientEmail, ssn`, each under `req.body.*`), `autoLogging` on, `pino-pretty` transport only when `NODE_ENV !== 'production'`. No `console.*` anywhere in `apps/api/src`.
+- Produces: `app.enableShutdownHooks()`; `PrismaService.onModuleDestroy` disconnects.
+
+- [ ] **Step 1: Failing tests** `test/hardening.test.ts`:
+
+```ts
+it('GET /api/readyz reports db up', …)                       // 200 { ok: true, db: 'up' }
+it('GET /docs/openapi.json is OpenAPI 3 and documents the claim route with a 412 response', …) // body.openapi startsWith '3', paths['/api/studies/{id}/claim'].post.responses['412'] defined
+it('responses carry security headers and X-Request-Id', …)  // x-content-type-options nosniff; x-request-id present; a supplied X-Request-Id is echoed back unchanged
+it('CORS allows the web origin only', …)                    // Origin http://localhost:5173 → access-control-allow-origin set; Origin http://evil.test → header absent
+```
+
+- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS; full api suite green; `nest build` OK; `npm run test:contention` still green.
+- [ ] **Step 5: Commit** `feat(api): openapi docs, security headers, pino logging, readiness`.
+
+---
+
+### Task 12: Tooling — ESLint, Prettier, Husky, commitlint, line endings
+
+**Files:**
+- Create: `eslint.config.mjs` (root flat config: `typescript-eslint` recommended for `apps/*/src`, `scripts/`, `apps/web/e2e`; `eslint-plugin-react-hooks` for web; rules `no-console: error` in `apps/api/src` and `apps/web/src`, `max-lines: ['error', { max: 300, skipBlankLines: true, skipComments: true }]`), `.prettierrc` (`singleQuote: true, printWidth: 100, trailingComma: 'all', semi: true`), `.prettierignore`, `.editorconfig`, `.gitattributes` (`* text=auto eol=lf` plus the existing `*.dcm binary`), `.husky/pre-commit`, `.husky/commit-msg`, `commitlint.config.cjs`, `.lintstagedrc.json`, `scripts/tsconfig.json`
+- Modify: root `package.json` (`lint`, `lint:fix`, `format`, `format:check`, `typecheck` = api + web + scripts, `verify` = `npm run lint && npm run typecheck && npm test`, `prepare` = `husky`)
+
+- [ ] **Step 1: Install** at root: `eslint`, `typescript-eslint`, `eslint-plugin-react-hooks`, `prettier`, `husky`, `lint-staged`, `@commitlint/cli`, `@commitlint/config-conventional`.
+- [ ] **Step 2: Write the configs.** lint-staged: `*.{ts,tsx}` → `eslint --max-warnings=0 --fix` then `prettier --write`; `*.{json,md,yml,yaml}` → `prettier --write`. `commit-msg` runs `npx --no -- commitlint --edit "$1"`.
+- [ ] **Step 3: Normalise**: after the `.gitattributes` change run `git add --renormalize .`; run `npm run format` once over the repo; run `npm run lint:fix`; fix remaining lint errors by hand (no `eslint-disable` without a reason comment).
+- [ ] **Step 4: Verify** `npm run verify` is green; a commit with the message `bad message` is rejected by the hook (record the output), then commit properly.
+- [ ] **Step 5: Commit** `style: format repo with prettier` (if large) then `chore: eslint, prettier, husky hooks, commitlint, lf line endings`.
+
+---
+
+### Task 13: Delivery — Dockerfiles, full-app compose profile, GitHub Actions CI
+
+**Files:**
+- Create: `apps/api/Dockerfile` (multi-stage: deps → build (`prisma generate`, `nest build`) → runtime `node:22-alpine`, non-root user, fixtures copied to `/app/fixtures` so the existing `__dirname` resolution still finds `../../../../fixtures` — adjust the copy path to match), `apps/api/docker-entrypoint.sh` (`prisma migrate deploy` then seed, then `node dist/main.js`), `apps/web/Dockerfile` (Vite build → `nginx:alpine`), `apps/web/nginx.conf` (`location /api/ { proxy_pass http://api:4000; }`, SPA fallback `try_files $uri /index.html`), `.dockerignore`
+- Modify: `docker/docker-compose.yml` — services `api` (build `../apps/api` with context `..`, `profiles: ["app"]`, env `DATABASE_URL=postgresql://imaging:imaging@postgres:5432/imaging`, `WEB_ORIGIN=http://localhost:8080`, `NODE_ENV=production`, depends_on postgres healthy) and `web` (build, `profiles: ["app"]`, port `8080:80`, depends_on api)
+- Create: `.github/workflows/ci.yml`
+- Modify: root `package.json` (`app:up` = `docker compose -f docker/docker-compose.yml --profile app up -d --build`, `app:down` = same with `down`)
+
+**Interfaces:**
+- Produces: `npm run app:up` → app at http://localhost:8080 with a migrated and seeded DB; `npm run app:down`.
+- Produces: CI job `verify` (ubuntu-latest, Node 22, `postgres:15` service with the `imaging`/`imaging_test` databases, `npm ci`, `npm run lint`, `npm run typecheck`, `npm run db:migrate:test`, `npm run test:api`, `npm run test:web`, `npm run build`, `npm run test:contention`) and job `e2e` (needs verify; `npx playwright install --with-deps chromium`; `npm run test:e2e`; upload `apps/web/playwright-report` on failure).
+
+- [ ] **Step 1: Write the Dockerfiles, entrypoint, nginx.conf, compose services.** Seeding in the image: ship `tsx` and `prisma/seed.ts` in the runtime image, or compile the seed with the Nest build; pick one and note it in the report.
+- [ ] **Step 2: Verify** `npm run app:up`; `curl http://localhost:8080/api/health` → `{"ok":true}`; `curl -I http://localhost:8080/api/studies/study-001/file` → `application/dicom`; open http://localhost:8080 in a browser (Playwright MCP) and claim a study; `npm run app:down`. Record outputs.
+- [ ] **Step 3: Write `ci.yml`**; validate with `actionlint` if available, else by `node -e "require('yaml').parse(...)"`.
+- [ ] **Step 4: Commit** `build: dockerfiles, app compose profile, github actions ci`.
+
+---
+
+### Task 14: Web polish and documentation — lazy viewer, error boundary, ADRs, architecture diagram
+
+**Files:**
+- Create: `apps/web/src/viewer/viewer-error-boundary.tsx`, `apps/web/src/viewer/study-viewer-lazy.tsx`
+- Modify: `apps/web/src/components/study-panel.tsx` (mount the lazy viewer inside the boundary with a `role="status"` "Loading viewer…" fallback), `apps/web/vite.config.ts` (`build.rollupOptions.output.manualChunks` putting `@cornerstonejs/*` and `dicom-parser` into a `cornerstone` chunk)
+- Create: `docs/adr/0001-thin-cornerstone-viewer-over-ohif.md`, `docs/adr/0002-database-compare-and-swap-for-ownership.md`, `docs/adr/0003-cpu-rendering-for-deterministic-tests.md`, `docs/adr/0004-fixed-file-map-instead-of-uploads.md` (format: Status / Context / Decision / Consequences, ≤ 60 lines each; no internal URLs or company-internal paths)
+- Create: `docs/architecture.md` (Mermaid: component diagram browser → Vite dev proxy or nginx → NestJS → Postgres; sequence diagram of the viewer load with the stale-guard; sequence diagram of the claim compare-and-swap with two reviewers)
+- Test: `apps/web/src/viewer/viewer-error-boundary.test.tsx`
+
+- [ ] **Step 1: Failing test**: a child that throws renders `role="alert"` with text `The viewer crashed. Close and reopen the study.`; content outside the boundary still renders.
+- [ ] **Step 2: Implement** the boundary and `React.lazy(() => import('./study-viewer'))` wrapped in `Suspense`. Web unit tests green; then run `npm run test:e2e` once (the lazy chunk must not break the Playwright helpers, which already wait for the strip/alert).
+- [ ] **Step 3: Write the four ADRs and `docs/architecture.md`.**
+- [ ] **Step 4: Verify** `npm -w apps/web run build` emits a separate `cornerstone-*.js` chunk and the main entry chunk is under 400 kB gzip; record the sizes.
+- [ ] **Step 5: Commit** `feat(web): lazy viewer with error boundary` then `docs: adrs and architecture diagrams`.
+
+---
+
+### Task 15: README, full verification, submission packaging
 
 **Files:**
 - Modify: `README.md`
 - Create: `.env.example`
 
-- [ ] **Step 1: Write README**: prerequisites (Node ≥ 22, npm ≥ 10, Docker), exact commands (spec §7.5), what each test suite proves (table mapping brief sections 01–05 to test files), the design decisions from spec §9 (worklist modality vs file modality, CPU rendering, Close viewer, 412 block), the PHI note, and "`npm run dev` touches no data; `npm run db:migrate` is safe to re-run; `db:reset` is the only destructive command".
-- [ ] **Step 2: Run the full gate one job at a time**: `npm run build`, `npm run test:api`, `npm run test:web`, `npm run test:contention`, `npm run test:e2e`. Record pass counts in the README.
+- [ ] **Step 1: Write README**: prerequisites (Node ≥ 22, npm ≥ 10, Docker), exact commands (spec §7.5 plus `app:up`/`app:down`, `verify`, `lint`, `format`, and the `/docs` URL), the Mermaid diagram from `docs/architecture.md`, links to the ADRs, what each test suite proves (table mapping brief sections 01–05 to test files), the design decisions from spec §9 (worklist modality vs file modality, CPU rendering, Close viewer, 412 block), the PHI note, and "`npm run dev` touches no data; `npm run db:migrate` is safe to re-run; `db:reset` is the only destructive command".
+- [ ] **Step 2: Run the full gate one job at a time**: `npm run verify` (lint + typecheck + api + web), `npm run build`, `npm run test:contention`, `npm run test:e2e`, then `npm run app:up` smoke and `app:down`. Record pass counts in the README.
 - [ ] **Step 3: Fresh-clone check**: copy the repo to a temp dir, `npm install`, `npm run db:up`, `npm run db:migrate`, `npm run dev`, open http://localhost:5173, claim and complete a study, restart `npm run dev`, confirm the completion persisted.
 - [ ] **Step 4: Commit** `docs: README with setup, commands and test map`.

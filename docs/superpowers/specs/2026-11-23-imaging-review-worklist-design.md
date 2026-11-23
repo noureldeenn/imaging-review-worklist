@@ -307,3 +307,20 @@ npm run test:e2e       # playwright (needs db + builds)
 - Unknown reviewer is checked via the Reviewer table (400), before study lookup.
 - Draft blocked-after-412 state is per study and cleared by an explicit "Refresh and continue" button.
 - Instrumentation counters are always present (tiny, no PHI) rather than test-only builds.
+
+## 10. Addendum (2026-11-23, after Task 9): viewer choice and senior-level polish
+
+### Approaches considered for the viewer
+
+| Option | Trade-off |
+| --- | --- |
+| **Keep the thin Cornerstone3D viewer and add production polish (chosen)** | Cornerstone3D is the engine OHIF is built on, so it is "an established viewer and loader". Every brief rule (metadata whitelist, no patient tags, lifecycle counters, out-of-scope features) stays provable. |
+| Cornerstone viewer + optional "Open in OHIF" via a DICOMweb facade and the official `ohif/app` image in a sandboxed iframe | Mirrors Craft Crew's own ADR 0001 (pacs-fe) but costs a DICOMweb facade and Docker complexity for the grader. Deferred. |
+| Replace the viewer with OHIF (vendored source or npm) | Rejected: Craft Crew's ADR rejected npm embedding; OHIF shows patient identifiers by default, ships out-of-scope features, and exposes no listener/engine counts for the lifecycle test. |
+
+### Polish scope (new plan tasks 11–14; old Task 11 becomes Task 15)
+
+- **API hardening**: OpenAPI at `/docs` (Scalar UI) + `/docs/openapi.json`, generated from the Zod schemas; Helmet + CORS limited to the web origin; Pino logging with a PHI redaction list (same list pacs-be uses, even though this app stores no PHI); request-id header; `/api/readyz` that pings the DB; graceful shutdown hooks.
+- **Tooling**: ESLint flat config (typescript-eslint, react-hooks), Prettier (single quotes, width 100), `.editorconfig`, `.gitattributes` `* text=auto eol=lf`, Husky pre-commit (lint-staged: eslint + prettier) and commit-msg (commitlint conventional), root `lint`, `format`, `typecheck`, `verify` scripts. One formatting pass over the repo.
+- **Delivery**: multi-stage Dockerfiles for api and web (nginx serving `dist` and proxying `/api`), compose `app` profile that runs db + api + web; GitHub Actions `ci.yml` (install, lint, typecheck, api tests with a postgres service, web tests, build; e2e as a separate job with Playwright browsers).
+- **Web and docs**: `React.lazy` + `Suspense` for the viewer bundle, an error boundary around it; ADRs in `docs/adr/` (0001 thin Cornerstone viewer over OHIF, 0002 database compare-and-swap for ownership, 0003 CPU rendering for determinism, 0004 fixed file map instead of uploads); README with a Mermaid architecture diagram and a brief-to-test map.
