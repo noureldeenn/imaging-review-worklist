@@ -1,8 +1,7 @@
 import { ScanLine } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-
-const NARROW = '(max-width: 899px)';
+import { isNarrowViewport } from '@/lib/viewport';
 
 /**
  * Workstation frame: slim top bar (product name, reviewer switcher) over a
@@ -24,11 +23,36 @@ export function AppShell({
 }) {
   const hasSelection = selectedKey !== null;
 
-  // Switching panes on a narrow screen starts the new pane at the top.
+  const previousKey = useRef<string | null>(selectedKey);
+  const listScrollY = useRef(0);
+
+  // Remember where the list was scrolled while it is the visible pane.
   useEffect(() => {
-    if (typeof window.matchMedia === 'function' && window.matchMedia(NARROW).matches) {
+    if (hasSelection) return undefined;
+    const onScroll = () => {
+      listScrollY.current = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [hasSelection]);
+
+  // Narrow screens only: opening a study starts the detail at the top (the detail
+  // heading takes focus, see StudyHeader); going back restores the list's scroll
+  // position and returns focus to the row that was open.
+  useEffect(() => {
+    const before = previousKey.current;
+    previousKey.current = selectedKey;
+    if (!isNarrowViewport() || before === selectedKey) return;
+    if (selectedKey !== null) {
       window.scrollTo({ top: 0 });
+      return;
     }
+    if (before === null) return;
+    window.scrollTo({ top: listScrollY.current });
+    const row = Array.from(document.querySelectorAll<HTMLElement>('[data-study-id]')).find(
+      (el) => el.dataset['studyId'] === before,
+    );
+    row?.focus({ preventScroll: true });
   }, [selectedKey]);
 
   return (

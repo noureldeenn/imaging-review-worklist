@@ -11,20 +11,20 @@ type Props = {
   onReset(): void;
 };
 
-// Below 640px the toolbar stacks: Fit / Reset, then one full-width row per slider
+// Below 900px the toolbar stacks: Fit / Reset, then one full-width row per slider
 // (label above the track, value right-aligned). The 44px-tall range input gives the
 // thumb a touch-sized hit area; the visible track stays thin.
 const slider =
-  'h-11 w-full min-w-20 cursor-pointer accent-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-40 sm:h-6 sm:flex-1';
+  'h-11 w-full min-w-20 cursor-pointer accent-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed min-[900px]:h-6 min-[900px]:flex-1';
 const field =
-  'flex min-w-0 flex-col items-stretch gap-0 text-[11px] whitespace-nowrap uppercase sm:min-w-[200px] sm:flex-1 sm:flex-row sm:items-center sm:gap-2';
+  'flex min-w-0 flex-col items-stretch gap-0 text-[11px] whitespace-nowrap uppercase min-[900px]:min-w-[200px] min-[900px]:flex-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-2';
 
 function SliderValue({ value }: { value: string }) {
   // Visual only (the <output> and aria-valuetext carry the value for assistive tech).
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute top-0 right-0 font-mono text-[11px] text-muted-foreground tabular-nums sm:hidden"
+      className="pointer-events-none absolute top-0 right-0 font-mono text-[11px] text-muted-foreground tabular-nums min-[900px]:hidden"
     >
       {value}
     </span>
@@ -36,7 +36,7 @@ export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }
   const wl = windowLevel?.wl ?? 0;
   const off = disabled || windowLevel === null;
   return (
-    <div className="viewer-controls flex flex-col gap-1 border-b bg-card px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2 sm:px-2 sm:py-1.5">
+    <div className="viewer-controls flex flex-col gap-1 border-b bg-card px-3 py-2 min-[900px]:flex-row min-[900px]:flex-wrap min-[900px]:items-center min-[900px]:gap-x-4 min-[900px]:gap-y-2 min-[900px]:px-2 min-[900px]:py-1.5">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -54,7 +54,7 @@ export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }
         <TooltipContent>Restore the default window/level and zoom</TooltipContent>
       </Tooltip>
       {/* Inputs are direct children of their labels so the label text stays exact. */}
-      <div className="relative min-w-0 sm:flex sm:flex-1">
+      <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
         <Label className={field}>
           Window width
           <input
@@ -71,7 +71,7 @@ export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }
         </Label>
         {windowLevel && <SliderValue value={`${ww}`} />}
       </div>
-      <div className="relative min-w-0 sm:flex sm:flex-1">
+      <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
         <Label className={field}>
           Window level
           <input
@@ -89,7 +89,7 @@ export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }
         {windowLevel && <SliderValue value={`${wl}`} />}
       </div>
       <output
-        className="viewer-wl hidden min-w-28 font-mono text-xs text-muted-foreground tabular-nums sm:block"
+        className="viewer-wl hidden min-w-28 font-mono text-xs text-muted-foreground tabular-nums min-[900px]:block"
         aria-live="off"
       >
         {windowLevel ? `W ${ww} / L ${wl}` : ''}

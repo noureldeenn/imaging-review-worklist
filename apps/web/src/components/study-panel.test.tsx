@@ -299,3 +299,33 @@ describe('StudyPanel review-note states', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });
+
+describe('Worklist refresh on conflicts', () => {
+  it('a 412 on claim makes the worklist row show the server current status', async () => {
+    const current = makeStudy(1, { status: 'InReview', ownerId: 'reviewer-b', version: 1 });
+    let listBody: StudyDto[] = [makeStudy(1)];
+    server.use(
+      http.get('/api/studies', () => HttpResponse.json(listBody)),
+      http.get('/api/studies/:id', () => HttpResponse.json(makeStudy(1))),
+      http.post('/api/studies/:id/claim', () => {
+        listBody = [current];
+        return HttpResponse.json(
+          { code: 'STALE_VERSION', message: 'stale', current },
+          { status: 412 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+    const row = await screen.findByRole('button', { name: 'Open study study-001' });
+    expect(within(row).getByText('Unassigned')).toBeInTheDocument();
+    select('study-001');
+    await user.click(await screen.findByRole('button', { name: 'Claim' }));
+    await screen.findByText(/now version 1/);
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('button', { name: 'Open study study-001' })).getByText('InReview'),
+      ).toBeInTheDocument(),
+    );
+  });
+});

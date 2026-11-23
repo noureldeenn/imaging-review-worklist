@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { CircleAlert, CircleCheck, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react';
 import { ApiRequestError, NetworkError } from '../api/client';
 import { studiesKeys } from '../queries/studies-queries';
 import { useSessionStore } from '../stores/session-store';
+import { prefersReducedMotion } from '@/lib/viewport';
 import { Button } from './ui/button';
 
 export type MutationOutcome =
@@ -25,11 +27,28 @@ export function MutationStatus({
   const queryClient = useQueryClient();
   const isBlocked = useSessionStore((s) => s.blocked[studyId] === true);
   const unblock = useSessionStore((s) => s.unblock);
+  const ref = useRef<HTMLElement | null>(null);
+  const setRef = (el: HTMLElement | null) => {
+    ref.current = el;
+  };
+
+  // The line sits below the viewer, often off-screen on phones: bring new feedback into view.
+  const feedbackKey = isBlocked
+    ? `blocked:${version}`
+    : outcome.kind === 'success'
+      ? outcome.message
+      : outcome.kind;
+  useEffect(() => {
+    const el = ref.current;
+    if (feedbackKey === 'idle' || !el || typeof el.scrollIntoView !== 'function') return;
+    el.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [feedbackKey]);
 
   // The stale-version notice is derived from store state so it survives remounts.
   if (isBlocked) {
     return (
       <div
+        ref={setRef}
         role="status"
         className="flex animate-panel-in flex-col gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 sm:flex-row sm:items-center sm:justify-between"
       >
@@ -49,6 +68,7 @@ export function MutationStatus({
             unblock(studyId);
             onRefreshed();
             void queryClient.invalidateQueries({ queryKey: studiesKeys.detail(studyId) });
+            void queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
           }}
         >
           <RefreshCw aria-hidden="true" />
@@ -57,12 +77,13 @@ export function MutationStatus({
       </div>
     );
   }
-  if (outcome.kind === 'idle') return <p role="status" />;
+  if (outcome.kind === 'idle') return <p ref={setRef} role="status" />;
   if (outcome.kind === 'success') {
     // Keyed by message so a claim followed by a completion replays the pulse.
     return (
       <p
         key={outcome.message}
+        ref={setRef}
         role="status"
         className={`${line} animate-pulse-teal border-primary/30 bg-primary/10 text-primary`}
       >
@@ -73,7 +94,7 @@ export function MutationStatus({
   }
   if (outcome.error instanceof NetworkError) {
     return (
-      <p role="status" className={errorLine}>
+      <p ref={setRef} role="status" className={errorLine}>
         <WifiOff aria-hidden="true" className="size-4" />
         Could not reach the server. Your note is kept.
       </p>
@@ -85,7 +106,7 @@ export function MutationStatus({
       ? error.message
       : 'Something went wrong.';
   return (
-    <p role="status" className={errorLine}>
+    <p ref={setRef} role="status" className={errorLine}>
       <CircleAlert aria-hidden="true" className="size-4" />
       {message}
     </p>

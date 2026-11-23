@@ -14,11 +14,14 @@ async function handleMutationError(queryClient: QueryClient, id: string, err: un
   if (err instanceof ApiRequestError && err.status === 412 && err.current) {
     await applyServerState(queryClient, err.current);
     useSessionStore.getState().block(id);
+    // Only the list prefix: the detail entry was just written authoritatively.
+    await queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
     return;
   }
-  // Other failures: keep the draft, refetch so the panel reflects the server.
+  // Other failures: keep the draft, refetch so the panel and the list reflect the server.
   if (err instanceof ApiRequestError) {
     await queryClient.invalidateQueries({ queryKey: studiesKeys.detail(id) });
+    await queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
   }
 }
 

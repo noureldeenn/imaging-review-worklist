@@ -22,7 +22,7 @@ export function StudyViewerLazy({ studyId }: { studyId: string }) {
     <ViewerErrorBoundary resetKey={studyId}>
       <Suspense
         fallback={
-          <div className="grid h-[min(60vh,420px)] sm:h-[clamp(280px,58vh,620px)] place-items-center rounded-lg border bg-viewer">
+          <div className="grid h-[min(60vh,420px)] min-[900px]:h-[clamp(280px,58vh,620px)] place-items-center rounded-lg border bg-viewer">
             <p role="status" className="text-xs text-muted-foreground">
               Loading viewer…
             </p>

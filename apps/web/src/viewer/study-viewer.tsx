@@ -20,7 +20,7 @@ export function StudyViewer({ studyId }: { studyId: string }) {
         {/* Cornerstone owns this element's children (its canvas); React renders none. */}
         <div
           ref={containerRef}
-          className="viewport relative h-[min(60vh,420px)] sm:h-[clamp(280px,58vh,620px)] w-full overflow-hidden bg-viewer"
+          className="viewport relative h-[min(60vh,420px)] min-[900px]:h-[clamp(280px,58vh,620px)] w-full overflow-hidden bg-viewer"
           data-testid="viewport"
           role="img"
           aria-label={`DICOM image for ${studyId}`}

@@ -1,9 +1,24 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { collectErrors, gotoWorklist, openStudy } from './helpers';
 
-// Two reviewers against the real stack. globalSetup reseeds once per run; the
-// viewer specs only view studies (they never assert status), so completing
+// Two reviewers against the real stack. globalSetup reseeds once per run and the
+// beforeAll below reseeds again for this spec, so retries start from the seed.
+// The viewer specs only view studies (they never assert status), so completing
 // study-008 and study-001 here does not affect them.
+
+const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+
+// This spec mutates studies; reseed so retries and --repeat-each start from the seed.
+test.beforeAll(() => {
+  const result = spawnSync('npm -w apps/api run db:reset:test', {
+    cwd: repoRoot,
+    shell: true,
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) throw new Error(`db:reset:test failed (exit ${String(result.status)})`);
+});
 
 let errors: string[] = [];
 

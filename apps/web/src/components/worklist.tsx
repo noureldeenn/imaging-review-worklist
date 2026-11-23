@@ -112,6 +112,7 @@ function WorklistRow({
       type="button"
       aria-pressed={selected}
       aria-label={`Open study ${study.id}`}
+      data-study-id={study.id}
       onClick={onSelect}
       className="group relative flex min-h-14 w-full flex-col justify-center gap-1.5 rounded-md border border-transparent px-3 py-2.5 text-left transition-colors duration-150 outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card aria-pressed:border-primary/25 aria-pressed:bg-primary/10"
     >

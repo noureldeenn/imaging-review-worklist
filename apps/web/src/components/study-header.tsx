@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { isNarrowViewport } from '@/lib/viewport';
 import type { StudyDto } from '../api/schemas';
 import { ModalityChip } from './modality-chip';
 import { OwnerAvatar } from './owner-avatar';
@@ -18,10 +19,21 @@ export function StudyHeader({
   owner: string;
   children: ReactNode;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Narrow screens hide the list (and the focused row) when a study opens; move focus
+  // to the detail heading so keyboard and screen-reader users land in the new pane.
+  useEffect(() => {
+    if (isNarrowViewport()) headingRef.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
     <header className="flex animate-panel-in flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-2">
-        <h2 className="font-mono text-lg leading-tight font-semibold tracking-tight">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-mono text-lg leading-tight font-semibold tracking-tight outline-none"
+        >
           {study.id}
           <span className="sr-only">
             {' '}
