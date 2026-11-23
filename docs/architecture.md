@@ -70,7 +70,7 @@ sequenceDiagram
 Each request gets an `X-Request-Id` (a valid incoming one is reused, otherwise generated),
 which is echoed in the response and attached to every pino log line for that request;
 pino redacts sensitive fields. Validation uses Zod. Failures leave the API in one error
-envelope, `{ code, message, current? }`, where `current` is the up-to-date study on 404/412/409/403
+envelope, `{ code, message, current? }`, where `current` is the up-to-date study on 412/409/403
 conflicts so the client can refresh without another call.
 
 ## Known trade-offs
