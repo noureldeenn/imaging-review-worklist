@@ -1,6 +1,6 @@
-import { metaData } from "@cornerstonejs/core";
+import { metaData } from '@cornerstonejs/core';
 
-export type ViewerState = "idle" | "loading" | "ready" | "error";
+export type ViewerState = 'idle' | 'loading' | 'ready' | 'error';
 export type ViewerMetadataValue = {
   modality: string;
   studyDate: string;
@@ -9,9 +9,9 @@ export type ViewerMetadataValue = {
 };
 export type WindowLevel = { ww: number; wl: number };
 
-export const DECODE_ERROR = "Could not decode this file (not a valid DICOM image).";
-export const INIT_ERROR = "The image viewer could not start.";
-export const VIEWPORT_ID = "study-viewport";
+export const DECODE_ERROR = 'Could not decode this file (not a valid DICOM image).';
+export const INIT_ERROR = 'The image viewer could not start.';
+export const VIEWPORT_ID = 'study-viewport';
 
 export const WW_MIN = 1;
 export const WW_MAX = 65535;
@@ -33,9 +33,9 @@ export function imageIdFor(studyId: string): string {
 }
 
 export function formatStudyDate(raw: unknown): string {
-  const s = typeof raw === "string" ? raw.trim() : "";
+  const s = typeof raw === 'string' ? raw.trim() : '';
   const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : s || "unknown date";
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : s || 'unknown date';
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -62,14 +62,13 @@ export function readWindowLevel(viewport: StackViewportLike): WindowLevel | null
  * Deliberately never touches patient-identifying modules and never logs.
  */
 export function readMetadata(imageId: string): ViewerMetadataValue | null {
-  const series = metaData.get("generalSeriesModule", imageId) as { modality?: unknown } | undefined;
-  const study = metaData.get("generalStudyModule", imageId) as { studyDate?: unknown } | undefined;
-  const pixel = metaData.get("imagePixelModule", imageId) as
-    | { rows?: unknown; columns?: unknown }
-    | undefined;
+  const series = metaData.get('generalSeriesModule', imageId) as { modality?: unknown } | undefined;
+  const study = metaData.get('generalStudyModule', imageId) as { studyDate?: unknown } | undefined;
+  const pixel = metaData.get('imagePixelModule', imageId) as
+    { rows?: unknown; columns?: unknown } | undefined;
   if (!series && !study && !pixel) return null;
   return {
-    modality: typeof series?.modality === "string" ? series.modality : "unknown",
+    modality: typeof series?.modality === 'string' ? series.modality : 'unknown',
     studyDate: formatStudyDate(study?.studyDate),
     rows: Number(pixel?.rows ?? 0),
     columns: Number(pixel?.columns ?? 0),

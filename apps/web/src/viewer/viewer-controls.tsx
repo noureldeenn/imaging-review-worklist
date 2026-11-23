@@ -1,4 +1,4 @@
-import { WL_MAX, WL_MIN, WW_MAX, WW_MIN, type WindowLevel } from "./viewer-session";
+import { WL_MAX, WL_MIN, WW_MAX, WW_MIN, type WindowLevel } from './viewer-session';
 
 type Props = {
   windowLevel: WindowLevel | null;
@@ -43,7 +43,7 @@ export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }
         />
       </label>
       <output className="viewer-wl" aria-live="off">
-        {windowLevel ? `W ${ww} / L ${wl}` : ""}
+        {windowLevel ? `W ${ww} / L ${wl}` : ''}
       </output>
     </div>
   );

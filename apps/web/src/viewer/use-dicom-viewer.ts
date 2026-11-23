@@ -1,7 +1,7 @@
-import { Enums, RenderingEngine, cache, type Types } from "@cornerstonejs/core";
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { initCornerstone } from "./cornerstone-init";
-import { instrumentElement, trackEngine, trackObserver, viewerStats } from "./viewer-stats";
+import { Enums, RenderingEngine, cache, type Types } from '@cornerstonejs/core';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { initCornerstone } from './cornerstone-init';
+import { instrumentElement, trackEngine, trackObserver, viewerStats } from './viewer-stats';
 import {
   DECODE_ERROR,
   INIT_ERROR,
@@ -15,7 +15,7 @@ import {
   type ViewerMetadataValue,
   type ViewerState,
   type WindowLevel,
-} from "./viewer-session";
+} from './viewer-session';
 
 type ViewState = {
   state: ViewerState;
@@ -24,7 +24,7 @@ type ViewState = {
   windowLevel: WindowLevel | null;
 };
 
-const IDLE: ViewState = { state: "idle", error: null, metadata: null, windowLevel: null };
+const IDLE: ViewState = { state: 'idle', error: null, metadata: null, windowLevel: null };
 
 // Rendering engines are looked up by id in a global cache, so ids must never be
 // reused: a stale viewport resolving late would otherwise reach the NEXT viewer.
@@ -68,14 +68,14 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       return false;
     };
 
-    setView({ ...IDLE, state: "loading" });
+    setView({ ...IDLE, state: 'loading' });
 
     const run = async () => {
       try {
         await initCornerstone();
       } catch {
         if (isStale()) return;
-        setView({ ...IDLE, state: "error", error: INIT_ERROR });
+        setView({ ...IDLE, state: 'error', error: INIT_ERROR });
         return;
       }
       if (isStale()) return;
@@ -108,7 +108,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
         if (isStale()) return;
         // Engine stays alive while the error is shown; the effect cleanup
         // (study change or close) releases it like any other load.
-        setView({ ...IDLE, state: "error", error: DECODE_ERROR });
+        setView({ ...IDLE, state: 'error', error: DECODE_ERROR });
         return;
       }
       if (isStale()) return;
@@ -122,12 +122,12 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       viewportRef.current = viewport;
       viewerStats.currentImageId = imageId;
       viewerStats.loadsCompleted += 1;
-      setView({ state: "ready", error: null, metadata, windowLevel });
+      setView({ state: 'ready', error: null, metadata, windowLevel });
     };
     run().catch(() => {
       // Engine/viewport setup itself failed (e.g. no canvas support).
       if (isStale()) return;
-      setView({ ...IDLE, state: "error", error: INIT_ERROR });
+      setView({ ...IDLE, state: 'error', error: INIT_ERROR });
     });
 
     return () => {

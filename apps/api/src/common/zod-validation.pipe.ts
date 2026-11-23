@@ -1,4 +1,4 @@
-import { PipeTransform } from '@nestjs/common';
+import type { PipeTransform } from '@nestjs/common';
 import type { ZodType } from 'zod';
 import { ApiError } from './api-error';
 

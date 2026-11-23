@@ -38,7 +38,12 @@ export function classifyFailure(
   }
   const requiredStatus = kind === 'claim' ? 'Unassigned' : 'InReview';
   if (current.status !== requiredStatus) {
-    throw new ApiError(409, 'INVALID_STATE', `Cannot ${kind} a study that is ${current.status}`, dto);
+    throw new ApiError(
+      409,
+      'INVALID_STATE',
+      `Cannot ${kind} a study that is ${current.status}`,
+      dto,
+    );
   }
   if (kind === 'complete' && current.ownerId !== reviewerId) {
     throw new ApiError(403, 'NOT_OWNER', 'Only the owning reviewer can complete this study', dto);

@@ -55,7 +55,9 @@ describe('Worklist', () => {
 
     d1.resolve(seededStudies);
     // Wait until the stale response has actually landed in its own cache entry.
-    await waitFor(() => expect(queryClient.getQueryState(studiesKeys.list({}))?.status).toBe('success'));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(studiesKeys.list({}))?.status).toBe('success'),
+    );
     await waitFor(() => expect(rowIds()).toEqual(['study-006', 'study-007']));
   });
 

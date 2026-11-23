@@ -23,7 +23,7 @@ export const viewerStats: ViewerStats = {
   currentImageId: null,
 };
 
-if (typeof window !== "undefined") window.__viewerStats = viewerStats;
+if (typeof window !== 'undefined') window.__viewerStats = viewerStats;
 
 export function trackEngine(delta: 1 | -1): void {
   viewerStats.engines += delta;
@@ -54,10 +54,10 @@ export function instrumentElement(el: HTMLElement): void {
   ) => {
     let id = ids.get(listener);
     if (id === undefined) {
-      id = (nextId += 1);
+      id = nextId += 1;
       ids.set(listener, id);
     }
-    const capture = typeof options === "boolean" ? options : options?.capture === true;
+    const capture = typeof options === 'boolean' ? options : options?.capture === true;
     return `${type}|${id}|${capture ? 1 : 0}`;
   };
   const add = el.addEventListener.bind(el);

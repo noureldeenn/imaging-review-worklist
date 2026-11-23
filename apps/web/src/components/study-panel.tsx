@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useClaimStudy, useCompleteStudy } from "../queries/study-mutations";
-import { useStudy } from "../queries/studies-queries";
-import { useSessionStore } from "../stores/session-store";
-import { StudyViewer } from "../viewer/study-viewer";
-import { CompletionForm } from "./completion-form";
-import { MutationStatus, type MutationOutcome } from "./mutation-status";
+import { useState } from 'react';
+import { useClaimStudy, useCompleteStudy } from '../queries/study-mutations';
+import { useStudy } from '../queries/studies-queries';
+import { useSessionStore } from '../stores/session-store';
+import { StudyViewer } from '../viewer/study-viewer';
+import { CompletionForm } from './completion-form';
+import { MutationStatus, type MutationOutcome } from './mutation-status';
 
 export function StudyPanel({ studyId }: { studyId: string }) {
   const reviewerId = useSessionStore((s) => s.reviewerId);
@@ -13,32 +13,25 @@ export function StudyPanel({ studyId }: { studyId: string }) {
   const { data: study, isPending, isError } = useStudy(studyId);
   const claim = useClaimStudy();
   const complete = useCompleteStudy();
-  const [last, setLast] = useState<"claim" | "complete" | null>(null);
+  const [last, setLast] = useState<'claim' | 'complete' | null>(null);
 
   const pending = claim.isPending || complete.isPending;
-  const active =
-    last === "claim" ? claim : last === "complete" ? complete : null;
-  let outcome: MutationOutcome = { kind: "idle" };
-  if (active?.isError) outcome = { kind: "error", error: active.error };
+  const active = last === 'claim' ? claim : last === 'complete' ? complete : null;
+  let outcome: MutationOutcome = { kind: 'idle' };
+  if (active?.isError) outcome = { kind: 'error', error: active.error };
   else if (active?.isSuccess)
     outcome = {
-      kind: "success",
-      message: last === "claim" ? "Study claimed." : "Study completed.",
+      kind: 'success',
+      message: last === 'claim' ? 'Study claimed.' : 'Study completed.',
     };
 
   if (isPending) return <p role="status">Loading study…</p>;
-  if (isError || !study)
-    return <p role="alert">Could not load study {studyId}.</p>;
+  if (isError || !study) return <p role="alert">Could not load study {studyId}.</p>;
 
   const owner =
-    study.ownerId === null
-      ? "none"
-      : study.ownerId === reviewerId
-        ? "you"
-        : study.ownerId;
-  const canClaim = study.status === "Unassigned" && !isBlocked && !pending;
-  const canComplete =
-    study.status === "InReview" && study.ownerId === reviewerId;
+    study.ownerId === null ? 'none' : study.ownerId === reviewerId ? 'you' : study.ownerId;
+  const canClaim = study.status === 'Unassigned' && !isBlocked && !pending;
+  const canComplete = study.status === 'InReview' && study.ownerId === reviewerId;
 
   return (
     <article aria-label={`Study ${study.id}`}>
@@ -51,7 +44,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
           type="button"
           disabled={!canClaim}
           onClick={() => {
-            setLast("claim");
+            setLast('claim');
             claim.mutate({
               id: study.id,
               reviewerId,
@@ -71,7 +64,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
           study={study}
           pending={pending}
           onSubmit={(note) => {
-            setLast("complete");
+            setLast('complete');
             complete.mutate({
               id: study.id,
               reviewerId,

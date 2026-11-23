@@ -1,5 +1,5 @@
-import { getConfiguration, init, setUseCPURendering } from "@cornerstonejs/core";
-import dicomImageLoader from "@cornerstonejs/dicom-image-loader";
+import { getConfiguration, init, setUseCPURendering } from '@cornerstonejs/core';
+import dicomImageLoader from '@cornerstonejs/dicom-image-loader';
 
 let ready: Promise<void> | null = null;
 

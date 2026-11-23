@@ -104,7 +104,11 @@ async function runRound(
 
   const statuses = replies.map((r) => r.status).sort((a, b) => a - b);
   if (statuses[0] !== 200 || statuses[1] !== 412) {
-    throw new RoundFailure(round, `expected statuses [200,412], got [${statuses.join(',')}]`, replies);
+    throw new RoundFailure(
+      round,
+      `expected statuses [200,412], got [${statuses.join(',')}]`,
+      replies,
+    );
   }
   const winner = replies.find((r) => r.status === 200) as Reply;
   const loser = replies.find((r) => r.status === 412) as Reply;
@@ -127,12 +131,13 @@ async function runRound(
 
 async function main(): Promise<number> {
   const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
-  const procs = [startApi(4101), startApi(4102)];
+  const [first, second] = [startApi(4101), startApi(4102)] as const;
+  const procs = [first, second];
   try {
     await Promise.all(procs.map(waitHealthy));
     let ok = 0;
     for (let round = 1; round <= ROUNDS; round += 1) {
-      await runRound(prisma, round, [procs[0].port, procs[1].port]);
+      await runRound(prisma, round, [first.port, second.port]);
       ok += 1;
     }
     console.log(`rounds=${ROUNDS} ok=${ok}`);

@@ -8,9 +8,9 @@ services:
       POSTGRES_PASSWORD: imaging
       POSTGRES_DB: imaging
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U imaging"]
+      test: ['CMD-SHELL', 'pg_isready -U imaging']
       interval: 2s
       timeout: 3s
       retries: 15

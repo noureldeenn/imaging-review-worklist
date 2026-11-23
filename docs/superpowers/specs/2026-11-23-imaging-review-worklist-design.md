@@ -51,34 +51,34 @@ measurements, 3D, multi-series navigation, draft persistence across reload, CI p
 
 ### Backend framework and database
 
-| Option | Trade-off |
-| --- | --- |
+| Option                                    | Trade-off                                                                                                                                                               |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **NestJS + Prisma + PostgreSQL (chosen)** | Matches Craft Crew's stack exactly. Postgres is the natural reading of "two API processes sharing a database". Costs: Docker dependency, more boilerplate than Fastify. |
-| Fastify + Prisma + PostgreSQL | Leaner, fewer files. Loses the house-style signal. |
-| Express/Fastify + SQLite | Zero infra, but weaker story for cross-process contention and not what the brief implies by "relational database" in a PACS context. |
+| Fastify + Prisma + PostgreSQL             | Leaner, fewer files. Loses the house-style signal.                                                                                                                      |
+| Express/Fastify + SQLite                  | Zero infra, but weaker story for cross-process contention and not what the brief implies by "relational database" in a PACS context.                                    |
 
 ### Viewer library
 
-| Option | Trade-off |
-| --- | --- |
+| Option                                                                                   | Trade-off                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Cornerstone3D (`@cornerstonejs/core` + `@cornerstonejs/dicom-image-loader`) (chosen)** | The current standard; used under OHIF, which pacs-fe already embeds. Handles uncompressed MONOCHROME2 natively, exposes window/level, resetCamera, resize, and explicit `destroy()`. |
-| Legacy cornerstone-core + cornerstone-wado-image-loader | Simpler API but deprecated; a reviewer would notice. |
-| dcmjs + hand-drawn canvas | Violates "do not implement a parser / raw pixel dump is not sufficient". |
+| Legacy cornerstone-core + cornerstone-wado-image-loader                                  | Simpler API but deprecated; a reviewer would notice.                                                                                                                                 |
+| dcmjs + hand-drawn canvas                                                                | Violates "do not implement a parser / raw pixel dump is not sufficient".                                                                                                             |
 
 ### Frontend shell
 
-| Option | Trade-off |
-| --- | --- |
-| **Vite + React 18 SPA (chosen)** | Right size for a single-page worklist. Fast tests with Vitest. |
-| Next.js | pacs-fe uses it, but Server Components add nothing here and complicate Cornerstone (browser-only). |
+| Option                           | Trade-off                                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Vite + React 18 SPA (chosen)** | Right size for a single-page worklist. Fast tests with Vitest.                                     |
+| Next.js                          | pacs-fe uses it, but Server Components add nothing here and complicate Cornerstone (browser-only). |
 
 ### Concurrency guard
 
-| Option | Trade-off |
-| --- | --- |
+| Option                                                                                                            | Trade-off                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Single conditional `UPDATE … WHERE id AND version = expected AND status = X [AND owner] RETURNING *` (chosen)** | One atomic statement; Postgres row lock guarantees one winner across any number of processes. On zero rows, re-read and classify the failure. |
-| `SELECT … FOR UPDATE` in a transaction, then check, then update | Also correct, more code, same guarantee. |
-| In-process lock | Explicitly rejected by the brief. |
+| `SELECT … FOR UPDATE` in a transaction, then check, then update                                                   | Also correct, more code, same guarantee.                                                                                                      |
+| In-process lock                                                                                                   | Explicitly rejected by the brief.                                                                                                             |
 
 ## 7. Architecture
 
@@ -129,16 +129,16 @@ supplies a path.
 
 Seed (idempotent, **create-if-absent only**, never overwrites existing rows so ordinary startup preserves data):
 
-| id | modality | file | status | owner | note |
-| --- | --- | --- | --- | --- | --- |
-| study-001 | OT | gradient | Unassigned | | |
-| study-002 | OT | checkerboard | Unassigned | | |
-| study-003 | OT | corrupt | Unassigned | | |
-| study-004 | CT | gradient | InReview | reviewer-a | |
-| study-005 | MR | checkerboard | InReview | reviewer-b | |
-| study-006 | CT | gradient | Completed | reviewer-a | "Seeded complete" |
-| study-007 | MR | checkerboard | Completed | reviewer-b | "Seeded complete" |
-| study-008 | OT | gradient | Unassigned | | |
+| id        | modality | file         | status     | owner      | note              |
+| --------- | -------- | ------------ | ---------- | ---------- | ----------------- |
+| study-001 | OT       | gradient     | Unassigned |            |                   |
+| study-002 | OT       | checkerboard | Unassigned |            |                   |
+| study-003 | OT       | corrupt      | Unassigned |            |                   |
+| study-004 | CT       | gradient     | InReview   | reviewer-a |                   |
+| study-005 | MR       | checkerboard | InReview   | reviewer-b |                   |
+| study-006 | CT       | gradient     | Completed  | reviewer-a | "Seeded complete" |
+| study-007 | MR       | checkerboard | Completed  | reviewer-b | "Seeded complete" |
+| study-008 | OT       | gradient     | Unassigned |            |                   |
 
 createdAt values are fixed timestamps one minute apart so ordering is deterministic.
 
@@ -147,29 +147,31 @@ createdAt values are fixed timestamps one minute apart so ordering is determinis
 All responses JSON. Study DTO:
 
 ```ts
-{ id, modality, createdAt, status, ownerId, reviewNote, version }   // never fileKey, never DICOM tags
+{
+  (id, modality, createdAt, status, ownerId, reviewNote, version);
+} // never fileKey, never DICOM tags
 ```
 
-| Method | Path | Behaviour |
-| --- | --- | --- |
-| GET | /api/reviewers | `[{id,name}]` |
-| GET | /api/studies?status=&modality= | AND filter, max 100, `ORDER BY createdAt ASC, id ASC` |
-| GET | /api/studies/:id | 404 if unknown |
-| POST | /api/studies/:id/claim | body `{reviewerId, expectedVersion}` |
-| POST | /api/studies/:id/complete | body `{reviewerId, expectedVersion, reviewNote}` |
-| GET | /api/studies/:id/file | `application/dicom`, `Cache-Control: no-store`, streamed from mapped path; 404 unknown id |
+| Method | Path                           | Behaviour                                                                                 |
+| ------ | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| GET    | /api/reviewers                 | `[{id,name}]`                                                                             |
+| GET    | /api/studies?status=&modality= | AND filter, max 100, `ORDER BY createdAt ASC, id ASC`                                     |
+| GET    | /api/studies/:id               | 404 if unknown                                                                            |
+| POST   | /api/studies/:id/claim         | body `{reviewerId, expectedVersion}`                                                      |
+| POST   | /api/studies/:id/complete      | body `{reviewerId, expectedVersion, reviewNote}`                                          |
+| GET    | /api/studies/:id/file          | `application/dicom`, `Cache-Control: no-store`, streamed from mapped path; 404 unknown id |
 
 Error envelope: `{ code: string, message: string, current?: StudyDto }`.
 
 Validation order (fixed by brief): input → existence → version → status → ownership.
 
-| Situation | Status | code |
-| --- | --- | --- |
-| malformed body, bad expectedVersion, note outside 1–1000 after trim, unknown reviewerId | 400 | `VALIDATION_ERROR` |
-| unknown study | 404 | `STUDY_NOT_FOUND` |
-| expectedVersion ≠ current | 412 | `STALE_VERSION` + `current` |
-| claim on non-Unassigned / complete on non-InReview | 409 | `INVALID_STATE` |
-| complete by non-owner | 403 | `NOT_OWNER` |
+| Situation                                                                               | Status | code                        |
+| --------------------------------------------------------------------------------------- | ------ | --------------------------- |
+| malformed body, bad expectedVersion, note outside 1–1000 after trim, unknown reviewerId | 400    | `VALIDATION_ERROR`          |
+| unknown study                                                                           | 404    | `STUDY_NOT_FOUND`           |
+| expectedVersion ≠ current                                                               | 412    | `STALE_VERSION` + `current` |
+| claim on non-Unassigned / complete on non-InReview                                      | 409    | `INVALID_STATE`             |
+| complete by non-owner                                                                   | 403    | `NOT_OWNER`                 |
 
 Unknown reviewerId is a 400 per the brief; checked against the Reviewer table before touching the study.
 
@@ -263,13 +265,13 @@ State:
 
 ### 7.4 Tests
 
-| Layer | Tool | Cases |
-| --- | --- | --- |
-| API (real Postgres, `imaging_test` DB, truncated + reseeded per file) | Vitest + supertest | filters AND + ordering + limit; 404; claim happy path; concurrent claims (Promise.all of 2 → one 200, one 412); non-owner complete 403; stale complete 412 changes nothing; invalid notes (empty, whitespace, 1001 chars) 400 and unchanged; unknown reviewer 400; INVALID_STATE 409; file route 404 + bytes equal fixture + no-store; **restart persistence**: mutate, close Nest app, boot a fresh app on same DB, read back |
-| Two-process contention | `scripts/contention-smoke.ts` | builds api, spawns two instances on 4101/4102 against `imaging_test`, resets study-001 to Unassigned, fires claim to each simultaneously ×20 rounds, asserts exactly one 200 and one 412 per round |
-| React | Vitest + RTL + MSW, `Deferred<T>` helper | out-of-order filter responses (first request resolves last, list shows second); a delayed GET study response resolving after a successful claim does not revert the panel; switch A→B with draft, B empty, back to A restores; stale completion 412 keeps draft, shows current state, Claim and Complete disabled until "Refresh and continue" |
-| Browser | Playwright (chromium, 1 worker) against real api+web | for each valid fixture: canvas non-blank and the two fixtures' pixel histograms differ; change WW/WL → canvas pixels change; reset → pixels return; resize container → canvas size changes; open corrupt → error visible, list still interactive, then open gradient → renders |
-| Lifecycle | Playwright with route delay on `/file` | select A, immediately select B while A delayed → only B's image id rendered (`loadsDiscarded ≥ 1`); open then close during delay → `engines === 0` and no error; five open/close cycles → `listeners` equals baseline and `engines === 0` |
+| Layer                                                                 | Tool                                                 | Cases                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| API (real Postgres, `imaging_test` DB, truncated + reseeded per file) | Vitest + supertest                                   | filters AND + ordering + limit; 404; claim happy path; concurrent claims (Promise.all of 2 → one 200, one 412); non-owner complete 403; stale complete 412 changes nothing; invalid notes (empty, whitespace, 1001 chars) 400 and unchanged; unknown reviewer 400; INVALID_STATE 409; file route 404 + bytes equal fixture + no-store; **restart persistence**: mutate, close Nest app, boot a fresh app on same DB, read back |
+| Two-process contention                                                | `scripts/contention-smoke.ts`                        | builds api, spawns two instances on 4101/4102 against `imaging_test`, resets study-001 to Unassigned, fires claim to each simultaneously ×20 rounds, asserts exactly one 200 and one 412 per round                                                                                                                                                                                                                             |
+| React                                                                 | Vitest + RTL + MSW, `Deferred<T>` helper             | out-of-order filter responses (first request resolves last, list shows second); a delayed GET study response resolving after a successful claim does not revert the panel; switch A→B with draft, B empty, back to A restores; stale completion 412 keeps draft, shows current state, Claim and Complete disabled until "Refresh and continue"                                                                                 |
+| Browser                                                               | Playwright (chromium, 1 worker) against real api+web | for each valid fixture: canvas non-blank and the two fixtures' pixel histograms differ; change WW/WL → canvas pixels change; reset → pixels return; resize container → canvas size changes; open corrupt → error visible, list still interactive, then open gradient → renders                                                                                                                                                 |
+| Lifecycle                                                             | Playwright with route delay on `/file`               | select A, immediately select B while A delayed → only B's image id rendered (`loadsDiscarded ≥ 1`); open then close during delay → `engines === 0` and no error; five open/close cycles → `listeners` equals baseline and `engines === 0`                                                                                                                                                                                      |
 
 Test isolation: API Vitest runs with `fileParallelism: false`; the root `npm test` runs `test:api` then `test:web`
 sequentially; the contention script and Playwright are separate commands. All test-side writes go to `imaging_test`.
@@ -312,11 +314,11 @@ npm run test:e2e       # playwright (needs db + builds)
 
 ### Approaches considered for the viewer
 
-| Option | Trade-off |
-| --- | --- |
-| **Keep the thin Cornerstone3D viewer and add production polish (chosen)** | Cornerstone3D is the engine OHIF is built on, so it is "an established viewer and loader". Every brief rule (metadata whitelist, no patient tags, lifecycle counters, out-of-scope features) stays provable. |
-| Cornerstone viewer + optional "Open in OHIF" via a DICOMweb facade and the official `ohif/app` image in a sandboxed iframe | Mirrors Craft Crew's own ADR 0001 (pacs-fe) but costs a DICOMweb facade and Docker complexity for the grader. Deferred. |
-| Replace the viewer with OHIF (vendored source or npm) | Rejected: Craft Crew's ADR rejected npm embedding; OHIF shows patient identifiers by default, ships out-of-scope features, and exposes no listener/engine counts for the lifecycle test. |
+| Option                                                                                                                     | Trade-off                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Keep the thin Cornerstone3D viewer and add production polish (chosen)**                                                  | Cornerstone3D is the engine OHIF is built on, so it is "an established viewer and loader". Every brief rule (metadata whitelist, no patient tags, lifecycle counters, out-of-scope features) stays provable. |
+| Cornerstone viewer + optional "Open in OHIF" via a DICOMweb facade and the official `ohif/app` image in a sandboxed iframe | Mirrors Craft Crew's own ADR 0001 (pacs-fe) but costs a DICOMweb facade and Docker complexity for the grader. Deferred.                                                                                      |
+| Replace the viewer with OHIF (vendored source or npm)                                                                      | Rejected: Craft Crew's ADR rejected npm embedding; OHIF shows patient identifiers by default, ships out-of-scope features, and exposes no listener/engine counts for the lifecycle test.                     |
 
 ### Polish scope (new plan tasks 11–14; old Task 11 becomes Task 15)
 

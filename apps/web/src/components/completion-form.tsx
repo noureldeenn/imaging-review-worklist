@@ -1,5 +1,5 @@
-import type { StudyDto } from "../api/schemas";
-import { useSessionStore } from "../stores/session-store";
+import type { StudyDto } from '../api/schemas';
+import { useSessionStore } from '../stores/session-store';
 
 export const MAX_NOTE_LENGTH = 1000;
 
@@ -12,7 +12,7 @@ export function CompletionForm({
   pending: boolean;
   onSubmit: (note: string) => void;
 }) {
-  const draft = useSessionStore((s) => s.drafts[study.id] ?? "");
+  const draft = useSessionStore((s) => s.drafts[study.id] ?? '');
   const isBlocked = useSessionStore((s) => s.blocked[study.id] === true);
   const setDraft = useSessionStore((s) => s.setDraft);
   const valid = draft.trim().length >= 1 && draft.length <= MAX_NOTE_LENGTH;

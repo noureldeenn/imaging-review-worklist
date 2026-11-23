@@ -7,7 +7,8 @@ import { server } from './server';
 // jsdom has no canvas backend and logs "Not implemented" on every getContext
 // call (the real viewer probes WebGL when a StudyPanel mounts). Report "no
 // context" quietly instead; real rendering is exercised in the browser tests.
-HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = (() =>
+  null) as typeof HTMLCanvasElement.prototype.getContext;
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => {

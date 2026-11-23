@@ -9,9 +9,9 @@ Two-reviewer DICOM study worklist: NestJS API + Postgres, React + Cornerstone vi
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `npm run db:up` | Start Postgres (creates `imaging` and `imaging_test`) |
-| `npm run db:down` | Stop Postgres |
+| Command           | Description                                           |
+| ----------------- | ----------------------------------------------------- |
+| `npm run db:up`   | Start Postgres (creates `imaging` and `imaging_test`) |
+| `npm run db:down` | Stop Postgres                                         |
 
 _To be completed in Task 11._

@@ -77,7 +77,9 @@ test('viewport follows container resize', async ({ page }) => {
   expect(after.mean).toBeLessThan(250);
 });
 
-test('corrupt fixture shows an error, list stays usable, valid study recovers', async ({ page }) => {
+test('corrupt fixture shows an error, list stays usable, valid study recovers', async ({
+  page,
+}) => {
   await openStudy(page, 'study-003');
   await expect(page.getByRole('alert')).toHaveText(/Could not decode/);
 

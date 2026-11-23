@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { afterAll, describe, expect, it } from 'vitest';
 import { seed } from '../prisma/seed';
 import { createTestPrisma, resetTestDb } from './db';
@@ -24,14 +24,70 @@ describe('seed', () => {
         reviewNote: s.reviewNote,
       })),
     ).toEqual([
-      { id: 'study-001', modality: 'OT', fileKey: 'gradient', status: 'Unassigned', ownerId: null, reviewNote: null },
-      { id: 'study-002', modality: 'OT', fileKey: 'checkerboard', status: 'Unassigned', ownerId: null, reviewNote: null },
-      { id: 'study-003', modality: 'OT', fileKey: 'corrupt', status: 'Unassigned', ownerId: null, reviewNote: null },
-      { id: 'study-004', modality: 'CT', fileKey: 'gradient', status: 'InReview', ownerId: 'reviewer-a', reviewNote: null },
-      { id: 'study-005', modality: 'MR', fileKey: 'checkerboard', status: 'InReview', ownerId: 'reviewer-b', reviewNote: null },
-      { id: 'study-006', modality: 'CT', fileKey: 'gradient', status: 'Completed', ownerId: 'reviewer-a', reviewNote: "Seeded complete" },
-      { id: 'study-007', modality: 'MR', fileKey: 'checkerboard', status: 'Completed', ownerId: 'reviewer-b', reviewNote: "Seeded complete" },
-      { id: 'study-008', modality: 'OT', fileKey: 'gradient', status: 'Unassigned', ownerId: null, reviewNote: null },
+      {
+        id: 'study-001',
+        modality: 'OT',
+        fileKey: 'gradient',
+        status: 'Unassigned',
+        ownerId: null,
+        reviewNote: null,
+      },
+      {
+        id: 'study-002',
+        modality: 'OT',
+        fileKey: 'checkerboard',
+        status: 'Unassigned',
+        ownerId: null,
+        reviewNote: null,
+      },
+      {
+        id: 'study-003',
+        modality: 'OT',
+        fileKey: 'corrupt',
+        status: 'Unassigned',
+        ownerId: null,
+        reviewNote: null,
+      },
+      {
+        id: 'study-004',
+        modality: 'CT',
+        fileKey: 'gradient',
+        status: 'InReview',
+        ownerId: 'reviewer-a',
+        reviewNote: null,
+      },
+      {
+        id: 'study-005',
+        modality: 'MR',
+        fileKey: 'checkerboard',
+        status: 'InReview',
+        ownerId: 'reviewer-b',
+        reviewNote: null,
+      },
+      {
+        id: 'study-006',
+        modality: 'CT',
+        fileKey: 'gradient',
+        status: 'Completed',
+        ownerId: 'reviewer-a',
+        reviewNote: 'Seeded complete',
+      },
+      {
+        id: 'study-007',
+        modality: 'MR',
+        fileKey: 'checkerboard',
+        status: 'Completed',
+        ownerId: 'reviewer-b',
+        reviewNote: 'Seeded complete',
+      },
+      {
+        id: 'study-008',
+        modality: 'OT',
+        fileKey: 'gradient',
+        status: 'Unassigned',
+        ownerId: null,
+        reviewNote: null,
+      },
     ]);
     expect(studies[0]?.createdAt.toISOString()).toBe('2026-10-07T09:00:00.000Z');
     expect(studies[7]?.createdAt.toISOString()).toBe('2026-10-07T09:07:00.000Z');

@@ -1,4 +1,4 @@
-import type { ViewerMetadataValue } from "./viewer-session";
+import type { ViewerMetadataValue } from './viewer-session';
 
 export function ViewerMetadata({ metadata }: { metadata: ViewerMetadataValue }) {
   const { modality, studyDate, rows, columns } = metadata;

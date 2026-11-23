@@ -41,6 +41,7 @@
 ### Task 1: Monorepo scaffold, database container, fixtures
 
 **Files:**
+
 - Create: `imaging-review-worklist/package.json`, `.gitignore`, `.nvmrc`, `tsconfig.base.json`
 - Create: `imaging-review-worklist/docker/docker-compose.yml`, `docker/init/01-create-test-db.sql`
 - Create: `imaging-review-worklist/fixtures/{gradient,checkerboard,corrupt}.dcm` (copied from `../samples/`)
@@ -48,6 +49,7 @@
 - Already present: `imaging-review-worklist/docs/superpowers/` (spec + this plan ship with the repo)
 
 **Interfaces:**
+
 - Produces: root scripts `db:up`, `db:down`, `db:migrate`, `db:reset`, `dev`, `build`, `test`, `test:api`, `test:web`, `test:e2e`, `test:contention` (bodies filled in later tasks; `db:up`/`db:down` work now).
 - Produces: env var contract `DATABASE_URL=postgresql://imaging:imaging@localhost:5432/imaging`, `DATABASE_URL_TEST=postgresql://imaging:imaging@localhost:5432/imaging_test`, `PORT`.
 
@@ -63,12 +65,14 @@
 ### Task 2: API skeleton, Prisma schema, migration, idempotent seed
 
 **Files:**
+
 - Create: `apps/api/package.json`, `apps/api/tsconfig.json`, `apps/api/nest-cli.json`, `apps/api/vitest.config.ts` (`fileParallelism: false`, `include: ['test/**/*.test.ts']`)
 - Create: `apps/api/src/main.ts`, `src/app.module.ts`, `src/config.ts`, `src/prisma/prisma.module.ts`, `src/prisma/prisma.service.ts`, `src/health/health.controller.ts`
 - Create: `apps/api/prisma/schema.prisma`, `prisma/migrations/<ts>_init/migration.sql`, `prisma/seed.ts`, `prisma/seed-data.ts`
 - Create: `apps/api/test/db.ts` (test helper), `apps/api/test/seed.test.ts`
 
 **Interfaces:**
+
 - Produces: `loadConfig(): { port: number; databaseUrl: string }` in `src/config.ts` — reads `PORT` (default 4000) and `DATABASE_URL`, or `DATABASE_URL_TEST` when `NODE_ENV === 'test'`. Only file that touches `process.env`.
 - Produces: `PrismaService extends PrismaClient` with `onModuleInit/onModuleDestroy`.
 - Produces: `SEED_REVIEWERS: Array<{id, name}>` and `SEED_STUDIES: Array<{id, modality, createdAt, status, ownerId, reviewNote, fileKey}>` in `prisma/seed-data.ts` exactly as the spec table (8 studies, createdAt `2026-10-07T09:00:00Z` + 1 min each). `seed(prisma): Promise<{created: number}>` in `prisma/seed.ts` — `createMany({ skipDuplicates: true })` for both tables.
@@ -107,12 +111,14 @@ it('re-running seed never overwrites existing rows', async () => {
 ### Task 3: Error envelope, Zod pipe, read endpoints
 
 **Files:**
+
 - Create: `apps/api/src/common/api-error.ts`, `src/common/api-error.filter.ts`, `src/common/zod-validation.pipe.ts`
 - Create: `apps/api/src/reviewers/reviewers.controller.ts`, `src/reviewers/reviewers.module.ts`
 - Create: `apps/api/src/studies/studies.dto.ts`, `src/studies/studies.mapper.ts`, `src/studies/studies.service.ts`, `src/studies/studies.controller.ts`, `src/studies/studies.module.ts`
 - Test: `apps/api/test/studies-read.test.ts`
 
 **Interfaces:**
+
 - Produces: `class ApiError extends HttpException { constructor(status: number, code: ApiErrorCode, message: string, current?: StudyDto) }`; `type ApiErrorCode = 'VALIDATION_ERROR'|'STUDY_NOT_FOUND'|'STALE_VERSION'|'INVALID_STATE'|'NOT_OWNER'`.
 - Produces: `ApiErrorFilter` (global) → body `{ code, message, current? }`; unknown errors → 500 `{ code: 'INTERNAL', message: 'Unexpected error' }`.
 - Produces: `ZodValidationPipe(schema)` → throws `ApiError(400, 'VALIDATION_ERROR', firstIssueMessage)`.
@@ -143,11 +149,13 @@ it('GET /api/studies/:id → 404 STUDY_NOT_FOUND', …)
 ### Task 4: Claim and complete with database compare-and-swap
 
 **Files:**
+
 - Modify: `apps/api/src/studies/studies.dto.ts`, `studies.service.ts`, `studies.controller.ts`
 - Create: `apps/api/src/studies/study-mutations.ts` (CAS + classification, keeps service < 300 lines)
 - Test: `apps/api/test/studies-mutations.test.ts`, `apps/api/test/persistence.test.ts`
 
 **Interfaces:**
+
 - Produces: `ClaimBody = { reviewerId: string(min 1), expectedVersion: number int ≥ 1 }` (Zod, no coercion); `CompleteBody = ClaimBody & { reviewNote: string → trim → min 1 max 1000 }`.
 - Produces: `StudiesService.claim(id, body): Promise<StudyDto>`, `complete(id, body): Promise<StudyDto>`.
 - Produces: in `study-mutations.ts`: `runCas(prisma, { id, expectedVersion, where: Prisma.StudyWhereInput, data }): Promise<Study | null>` (transaction: `updateMany` then `findUniqueOrThrow` if count === 1) and `classifyFailure(current: Study | null, expectedVersion, kind: 'claim'|'complete', reviewerId): never` (throws 404/412/409/403 in spec order).
@@ -194,11 +202,13 @@ it('ownership, note and version survive an application restart', async () => {
 ### Task 5: DICOM file endpoint
 
 **Files:**
+
 - Create: `apps/api/src/studies/study-files.ts`
 - Modify: `apps/api/src/studies/studies.controller.ts`
 - Test: `apps/api/test/study-file.test.ts`
 
 **Interfaces:**
+
 - Produces: `FIXTURE_FILES: Record<'gradient'|'checkerboard'|'corrupt', string>` (absolute paths resolved from `apps/api` to `../../fixtures/*.dcm`) and `resolveStudyFile(fileKey: string): string` (throws `ApiError(404, 'STUDY_NOT_FOUND')` for an unmapped key).
 - Produces: `GET /api/studies/:id/file` → `StreamableFile`, headers `Content-Type: application/dicom`, `Cache-Control: no-store`, `Content-Length`.
 
@@ -219,10 +229,12 @@ it('path-like ids cannot escape: GET /api/studies/..%2F..%2Fpackage.json/file �
 ### Task 6: Two-process contention smoke test
 
 **Files:**
+
 - Create: `scripts/contention-smoke.ts`
 - Modify: root `package.json` (`test:contention` = `npm -w apps/api run build && tsx scripts/contention-smoke.ts`; `test` = `npm run test:api && npm run test:web`)
 
 **Interfaces:**
+
 - Consumes: built API at `apps/api/dist/main.js`, env `PORT`, `NODE_ENV=test` (uses `imaging_test`).
 - Produces: exit 0 with `rounds=20 ok=20` on stdout; exit 1 with the failing round printed otherwise.
 
@@ -235,6 +247,7 @@ it('path-like ids cannot escape: GET /api/studies/..%2F..%2Fpackage.json/file �
 ### Task 7: Web scaffold, API client, session store, reviewer select, filters, worklist
 
 **Files:**
+
 - Create: `apps/web/package.json`, `vite.config.ts` (proxy `/api`, vitest `environment: jsdom`, `setupFiles`), `tsconfig.json`, `index.html`
 - Create: `apps/web/src/main.tsx`, `src/app.tsx`, `src/app.css`
 - Create: `apps/web/src/api/schemas.ts` (Zod: `StudyDto`, `ReviewerDto`, `ApiErrorBody`), `src/api/client.ts`
@@ -245,6 +258,7 @@ it('path-like ids cannot escape: GET /api/studies/..%2F..%2Fpackage.json/file �
 - Test: `src/components/worklist.test.tsx`
 
 **Interfaces:**
+
 - Produces: `Deferred<T> = { promise: Promise<T>; resolve(v: T): void; reject(e: unknown): void }`, `deferred<T>()`.
 - Produces: `api.listStudies(filters: StudyFilters): Promise<StudyDto[]>`, `api.getStudy(id)`, `api.listReviewers()`, `api.claim(id, body)`, `api.complete(id, body)`. Non-2xx → throws `ApiRequestError { status, code, message, current? }`; network failure → throws `NetworkError`.
 - Produces: `StudyFilters = { status?: StudyStatus; modality?: string }`; query keys `studiesKeys.list(filters)`, `studiesKeys.detail(id)`, `reviewersKey`; hooks `useStudies(filters)`, `useStudy(id | null)`, `useReviewers()`.
@@ -273,12 +287,14 @@ it('shows loading then rows, and an error with Retry on 500', …)
 ### Task 8: Study panel, claim, completion form, drafts, 412 recovery
 
 **Files:**
+
 - Create: `apps/web/src/components/study-panel.tsx`, `completion-form.tsx`, `mutation-status.tsx`
 - Create: `apps/web/src/queries/study-mutations.ts`
 - Modify: `apps/web/src/app.tsx`
 - Test: `src/components/study-panel.test.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 7 store, hooks, `ApiRequestError`.
 - Produces: `useClaimStudy()`, `useCompleteStudy()` — `useMutation` wrappers. `onSuccess`: `await cancelQueries(detail(id))`, then `setQueryData(detail(id), dto)` + `invalidateQueries(list)`. `onError` with `status === 412`: `await cancelQueries(detail(id))`, `setQueryData(detail(id), err.current)`, `store.block(id)`. Other errors: leave draft, surface message.
 - Produces: `StudyPanel({ studyId })` shows id, modality, status, owner ("you" when equals current reviewer), version, and a **Close viewer** button (`selectStudy(null)`); when `selectedStudyId` is null `app.tsx` renders `<p>Select a study to view it.</p>` instead of the panel. `Claim` button (enabled only when `status === 'Unassigned' && !blocked[id]` and no pending mutation); `CompletionForm` (textarea labeled "Review note", value = `drafts[studyId] ?? ''`, `Complete` enabled only when `status === 'InReview' && ownerId === reviewerId && !blocked[id] && !pending && trimmed length 1..1000`); a `role="status"` line for success / network error "Could not reach the server. Your note is kept." / 412 "This study changed (now version N). Review the current state, then press Refresh and continue." with a button **Refresh and continue** → `unblock(id)` + refetch detail.
@@ -308,12 +324,14 @@ it('Close viewer clears the panel and shows "Select a study to view it."', …)
 ### Task 9: Cornerstone3D viewer with load guards, disposal and instrumentation
 
 **Files:**
+
 - Create: `apps/web/src/viewer/cornerstone-init.ts`, `viewer-stats.ts`, `use-dicom-viewer.ts`, `study-viewer.tsx`, `viewer-controls.tsx`, `viewer-metadata.tsx`
 - Modify: `apps/web/vite.config.ts` (`optimizeDeps.exclude: ['@cornerstonejs/dicom-image-loader']`, `worker.format: 'es'`)
 - Modify: `apps/web/src/components/study-panel.tsx` (mount `StudyViewer`)
 - Test: `src/viewer/use-dicom-viewer.test.ts` (unit, with the cornerstone modules mocked at module level — the only place module mocks are allowed, because the real engine needs a browser; the real engine is covered in Task 10)
 
 **Interfaces:**
+
 - Produces: `initCornerstone(): Promise<void>` (idempotent; `csCore.init()`, `csCore.setUseCPURendering(true)`, `dicomImageLoader.init({ maxWebWorkers: 1 })`).
 - Produces: `viewerStats` module: `{ engines: number; observers: number; elementListeners: number; loadsCompleted: number; loadsDiscarded: number; currentImageId: string | null }` mirrored to `window.__viewerStats`; helpers `trackEngine(+1|-1)`, `instrumentElement(el)` (wraps add/removeEventListener on that element).
 - Produces: `useDicomViewer(studyId: string | null): { containerRef, state: 'idle'|'loading'|'ready'|'error', error: string | null, metadata: { modality, studyDate, rows, columns } | null, setWindowLevel(ww: number, wl: number), resetView(), windowLevel: { ww, wl } | null }`.
@@ -342,10 +360,12 @@ it('a rejected load sets state error with the decode message and keeps the engin
 ### Task 10: Playwright browser and lifecycle tests against the real viewer
 
 **Files:**
+
 - Create: `apps/web/playwright.config.ts` (`workers: 1`, `webServer`: api on 4000 with `NODE_ENV=test` + web on 5173, chromium default launch; CPU rendering needs no GPU flags), `apps/web/e2e/helpers.ts`, `e2e/viewer-render.spec.ts`, `e2e/viewer-lifecycle.spec.ts`
 - Modify: root `package.json` `test:e2e` = `npm -w apps/web run test:e2e` (which runs `db:migrate` for the test DB first via a `globalSetup` calling `resetTestDb`).
 
 **Interfaces:**
+
 - Consumes: `window.__viewerStats`, `data-testid="viewport"`, control labels from Task 9, study ids from seed (`study-001` gradient, `study-002` checkerboard, `study-003` corrupt).
 - Produces: helper `canvasPixels(page): Promise<{ mean: number; data: number[] }>` via `page.evaluate` reading `getImageData` from the 2D canvas that CPU rendering produces; `diffRatio(a, b)` = fraction of pixels whose luminance differs by more than 8.
 
@@ -376,11 +396,13 @@ test('five close/reopen cycles do not accumulate handlers or engines', …) // b
 ### Task 11: API hardening — OpenAPI, security headers, structured logging, readiness
 
 **Files:**
+
 - Create: `apps/api/src/common/openapi.ts`, `src/common/logging.ts`, `src/common/request-id.middleware.ts`
 - Modify: `apps/api/src/main.ts`, `src/app.module.ts`, `src/health/health.controller.ts`, `src/studies/studies.controller.ts`, `src/reviewers/reviewers.controller.ts`, `src/config.ts`
 - Test: `apps/api/test/hardening.test.ts`
 
 **Interfaces:**
+
 - Produces: `GET /api/readyz` → 200 `{ ok: true, db: 'up' }` or 503 `{ ok: false, db: 'down' }` (runs `SELECT 1`). `GET /api/health` unchanged.
 - Produces: `GET /docs` (Scalar UI via `@scalar/nestjs-api-reference`) and `GET /docs/openapi.json` (OpenAPI 3.x built with `@nestjs/swagger` `DocumentBuilder`; Zod DTOs surfaced by converting each schema with `z.toJSONSchema` into `@ApiBody({ schema })` / `@ApiResponse({ schema })`). Every route has `@ApiOperation`, an `@ApiResponse` for each status it returns (400/403/404/409/412 examples use the error envelope with synthetic values), and a tag (`studies`, `reviewers`, `health`). Gated by `API_DOCS_ENABLED` (default `true`) read in `loadConfig()`.
 - Produces: `helmet()` with defaults; CORS allowing only `WEB_ORIGIN` (default `http://localhost:5173`, read in `loadConfig()`); `X-Request-Id` echoed if supplied, otherwise a generated uuid, on every response.
@@ -404,6 +426,7 @@ it('CORS allows the web origin only', …)                    // Origin http://l
 ### Task 12: Tooling — ESLint, Prettier, Husky, commitlint, line endings
 
 **Files:**
+
 - Create: `eslint.config.mjs` (root flat config: `typescript-eslint` recommended for `apps/*/src`, `scripts/`, `apps/web/e2e`; `eslint-plugin-react-hooks` for web; rules `no-console: error` in `apps/api/src` and `apps/web/src`, `max-lines: ['error', { max: 300, skipBlankLines: true, skipComments: true }]`), `.prettierrc` (`singleQuote: true, printWidth: 100, trailingComma: 'all', semi: true`), `.prettierignore`, `.editorconfig`, `.gitattributes` (`* text=auto eol=lf` plus the existing `*.dcm binary`), `.husky/pre-commit`, `.husky/commit-msg`, `commitlint.config.cjs`, `.lintstagedrc.json`, `scripts/tsconfig.json`
 - Modify: root `package.json` (`lint`, `lint:fix`, `format`, `format:check`, `typecheck` = api + web + scripts, `verify` = `npm run lint && npm run typecheck && npm test`, `prepare` = `husky`)
 
@@ -418,12 +441,14 @@ it('CORS allows the web origin only', …)                    // Origin http://l
 ### Task 13: Delivery — Dockerfiles, full-app compose profile, GitHub Actions CI
 
 **Files:**
+
 - Create: `apps/api/Dockerfile` (multi-stage: deps → build (`prisma generate`, `nest build`) → runtime `node:22-alpine`, non-root user, fixtures copied to `/app/fixtures` so the existing `__dirname` resolution still finds `../../../../fixtures` — adjust the copy path to match), `apps/api/docker-entrypoint.sh` (`prisma migrate deploy` then seed, then `node dist/main.js`), `apps/web/Dockerfile` (Vite build → `nginx:alpine`), `apps/web/nginx.conf` (`location /api/ { proxy_pass http://api:4000; }`, SPA fallback `try_files $uri /index.html`), `.dockerignore`
 - Modify: `docker/docker-compose.yml` — services `api` (build `../apps/api` with context `..`, `profiles: ["app"]`, env `DATABASE_URL=postgresql://imaging:imaging@postgres:5432/imaging`, `WEB_ORIGIN=http://localhost:8080`, `NODE_ENV=production`, depends_on postgres healthy) and `web` (build, `profiles: ["app"]`, port `8080:80`, depends_on api)
 - Create: `.github/workflows/ci.yml`
 - Modify: root `package.json` (`app:up` = `docker compose -f docker/docker-compose.yml --profile app up -d --build`, `app:down` = same with `down`)
 
 **Interfaces:**
+
 - Produces: `npm run app:up` → app at http://localhost:8080 with a migrated and seeded DB; `npm run app:down`.
 - Produces: CI job `verify` (ubuntu-latest, Node 22, `postgres:15` service with the `imaging`/`imaging_test` databases, `npm ci`, `npm run lint`, `npm run typecheck`, `npm run db:migrate:test`, `npm run test:api`, `npm run test:web`, `npm run build`, `npm run test:contention`) and job `e2e` (needs verify; `npx playwright install --with-deps chromium`; `npm run test:e2e`; upload `apps/web/playwright-report` on failure).
 
@@ -437,6 +462,7 @@ it('CORS allows the web origin only', …)                    // Origin http://l
 ### Task 14: Web polish and documentation — lazy viewer, error boundary, ADRs, architecture diagram
 
 **Files:**
+
 - Create: `apps/web/src/viewer/viewer-error-boundary.tsx`, `apps/web/src/viewer/study-viewer-lazy.tsx`
 - Modify: `apps/web/src/components/study-panel.tsx` (mount the lazy viewer inside the boundary with a `role="status"` "Loading viewer…" fallback), `apps/web/vite.config.ts` (`build.rollupOptions.output.manualChunks` putting `@cornerstonejs/*` and `dicom-parser` into a `cornerstone` chunk)
 - Create: `docs/adr/0001-thin-cornerstone-viewer-over-ohif.md`, `docs/adr/0002-database-compare-and-swap-for-ownership.md`, `docs/adr/0003-cpu-rendering-for-deterministic-tests.md`, `docs/adr/0004-fixed-file-map-instead-of-uploads.md` (format: Status / Context / Decision / Consequences, ≤ 60 lines each; no internal URLs or company-internal paths)
@@ -454,6 +480,7 @@ it('CORS allows the web origin only', …)                    // Origin http://l
 ### Task 15: README, full verification, submission packaging
 
 **Files:**
+
 - Modify: `README.md`
 - Create: `.env.example`
 

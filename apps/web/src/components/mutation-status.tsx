@@ -4,9 +4,7 @@ import { studiesKeys } from '../queries/studies-queries';
 import { useSessionStore } from '../stores/session-store';
 
 export type MutationOutcome =
-  | { kind: 'idle' }
-  | { kind: 'success'; message: string }
-  | { kind: 'error'; error: unknown };
+  { kind: 'idle' } | { kind: 'success'; message: string } | { kind: 'error'; error: unknown };
 
 export function MutationStatus({
   studyId,
