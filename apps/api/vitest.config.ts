@@ -6,6 +6,7 @@ export const config = defineConfig({
   test: {
     fileParallelism: false,
     include: ['test/**/*.test.ts'],
+    globalSetup: ['./test/global-setup.ts'],
     setupFiles: ['./test/setup.ts'],
     environment: 'node',
   },
