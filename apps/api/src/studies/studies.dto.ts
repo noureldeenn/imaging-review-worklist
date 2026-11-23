@@ -23,3 +23,17 @@ export const ListStudiesQuery = z.object({
   }, z.string().min(1).optional()),
 });
 export type ListStudiesQueryInput = z.infer<typeof ListStudiesQuery>;
+
+export const ClaimBody = z.object({
+  reviewerId: z.string().min(1),
+  expectedVersion: z.number().int().min(1),
+});
+export type ClaimBodyInput = z.infer<typeof ClaimBody>;
+
+export const CompleteBody = ClaimBody.extend({
+  reviewNote: z
+    .string()
+    .transform((s) => s.trim())
+    .pipe(z.string().min(1).max(1000)),
+});
+export type CompleteBodyInput = z.infer<typeof CompleteBody>;
