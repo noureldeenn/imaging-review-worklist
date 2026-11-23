@@ -19,10 +19,27 @@
     "test:web": "npm -w apps/web test",
     "test:e2e": "npm -w apps/api run build && npm -w apps/web run test:e2e",
     "test:contention": "npm run db:migrate:test && npm -w apps/api run build && npx tsx scripts/contention-smoke.ts",
-    "db:migrate:test": "npm -w apps/api run db:migrate:test"
+    "db:migrate:test": "npm -w apps/api run db:migrate:test",
+    "typecheck": "npm -w apps/api run typecheck && npm -w apps/web run typecheck && tsc -p scripts/tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "9.2.5"
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4",
+    "@eslint/js": "9.39.5",
+    "concurrently": "9.2.5",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.2",
+    "prettier": "3.10.1",
+    "typescript-eslint": "8.74.0"
   },
   "overrides": {
     "react": "18.3.1",
