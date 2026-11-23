@@ -6,6 +6,7 @@ import { useSessionStore } from '../stores/session-store';
 import { StudyViewerLazy } from '../viewer/study-viewer-lazy';
 import { CompletionForm } from './completion-form';
 import { MutationStatus, type MutationOutcome } from './mutation-status';
+import { ReviewNoteHint, SavedReviewNote } from './review-note';
 import { StudyHeader } from './study-header';
 import { PendingIcon } from './pending-icon';
 import { Button } from './ui/button';
@@ -79,7 +80,9 @@ export function StudyPanel({ studyId }: { studyId: string }) {
         </Button>
       </StudyHeader>
       <StudyViewerLazy studyId={studyId} />
-      {canComplete && (
+      {study.reviewNote !== null ? (
+        <SavedReviewNote study={study} note={study.reviewNote} reviewerId={reviewerId} />
+      ) : canComplete ? (
         <CompletionForm
           study={study}
           pending={pending}
@@ -93,6 +96,8 @@ export function StudyPanel({ studyId }: { studyId: string }) {
             });
           }}
         />
+      ) : (
+        <ReviewNoteHint study={study} reviewerId={reviewerId} />
       )}
       <MutationStatus
         studyId={study.id}

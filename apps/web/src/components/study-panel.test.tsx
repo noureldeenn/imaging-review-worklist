@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -247,5 +247,55 @@ describe('StudyPanel 412 recovery across selection', () => {
     expect(screen.getByRole('button', { name: 'Complete' })).toBeDisabled();
     expect(screen.getByLabelText('Review note')).toHaveValue('note A');
     expect(screen.getByRole('button', { name: 'Refresh and continue' })).toBeInTheDocument();
+  });
+});
+
+describe('StudyPanel review-note states', () => {
+  it('a Completed study owned by another reviewer shows the saved note read-only', async () => {
+    serveStudies([
+      makeStudy(1, {
+        status: 'Completed',
+        ownerId: 'reviewer-b',
+        version: 2,
+        reviewNote: 'No acute findings.\nFollow-up in 6 months.',
+      }),
+    ]);
+    renderWithProviders(<App />);
+    select('study-001');
+    const saved = await screen.findByRole('region', { name: 'Saved review note' });
+    expect(within(saved).getByText('Completed by reviewer-b')).toBeInTheDocument();
+    expect(
+      within(saved).getByText(/No acute findings\.\s+Follow-up in 6 months\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Complete' })).not.toBeInTheDocument();
+  });
+
+  it('says "Completed by you" when the current reviewer completed it', async () => {
+    serveStudies([
+      makeStudy(1, { status: 'Completed', ownerId: 'reviewer-a', version: 2, reviewNote: 'ok' }),
+    ]);
+    renderWithProviders(<App />);
+    select('study-001');
+    expect(await screen.findByText('Completed by you')).toBeInTheDocument();
+  });
+
+  it('an InReview study owned by the other reviewer explains who owns it, with no form', async () => {
+    serveStudies([makeStudy(1, { status: 'InReview', ownerId: 'reviewer-b', version: 1 })]);
+    renderWithProviders(<App />);
+    select('study-001');
+    expect(
+      await screen.findByText('In review by reviewer-b. Only the owner can complete it.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Complete' })).not.toBeInTheDocument();
+  });
+
+  it('an Unassigned study shows the claim hint', async () => {
+    serveStudies([makeStudy(1)]);
+    renderWithProviders(<App />);
+    select('study-001');
+    expect(await screen.findByText('Claim this study to write a review note.')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });
