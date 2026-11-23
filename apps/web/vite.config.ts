@@ -28,6 +28,25 @@ export default defineConfig({
     ],
   },
   worker: { format: 'es' },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          // Vite's dynamic-import helper is used by the entry; keep it out of
+          // the heavy chunk.
+          if (id.includes('vite/preload-helper') || id.includes('vite/modulepreload'))
+            return 'vendor';
+          if (!id.includes('node_modules')) return undefined;
+          // Only the app's own runtime deps are 'vendor'; everything else under
+          // node_modules is a transitive dependency of the lazy viewer (vtk.js,
+          // codecs, ...) and belongs with Cornerstone so the entry stays small.
+          if (/node_modules\/(react|react-dom|scheduler|@tanstack|zustand|zod)\//.test(id))
+            return 'vendor';
+          return 'cornerstone';
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
