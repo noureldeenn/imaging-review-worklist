@@ -40,6 +40,7 @@ export default defineConfig({
           // Only the app's own runtime deps are 'vendor'; everything else under
           // node_modules is a transitive dependency of the lazy viewer (vtk.js,
           // codecs, ...) and belongs with Cornerstone so the entry stays small.
+          // New app runtime dependencies must be added to this regex, or they land in the lazy chunk.
           if (/node_modules\/(react|react-dom|scheduler|@tanstack|zustand|zod)\//.test(id))
             return 'vendor';
           return 'cornerstone';
