@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useClaimStudy, useCompleteStudy } from "../queries/study-mutations";
 import { useStudy } from "../queries/studies-queries";
 import { useSessionStore } from "../stores/session-store";
+import { StudyViewer } from "../viewer/study-viewer";
 import { CompletionForm } from "./completion-form";
 import { MutationStatus, type MutationOutcome } from "./mutation-status";
 
@@ -64,7 +65,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
           Close viewer
         </button>
       </div>
-      <div data-testid="viewer-slot" />
+      <StudyViewer studyId={studyId} />
       {canComplete && (
         <CompletionForm
           study={study}
