@@ -26,7 +26,7 @@ export type ListStudiesQueryInput = z.infer<typeof ListStudiesQuery>;
 
 export const ClaimBody = z.object({
   reviewerId: z.string().min(1),
-  expectedVersion: z.number().int().min(1),
+  expectedVersion: z.number().int().min(1).max(2147483647),
 });
 export type ClaimBodyInput = z.infer<typeof ClaimBody>;
 

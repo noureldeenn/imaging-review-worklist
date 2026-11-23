@@ -47,7 +47,9 @@ describe('POST claim', () => {
   });
 
   it('400 VALIDATION_ERROR when expectedVersion is 1.5 or missing', async () => {
-    expect((await claim('study-001', 'reviewer-a', 1.5)).body.code).toBe('VALIDATION_ERROR');
+    const frac = await claim('study-001', 'reviewer-a', 1.5);
+    expect(frac.status).toBe(400);
+    expect(frac.body.code).toBe('VALIDATION_ERROR');
     const res = await post('/api/studies/study-001/claim', { reviewerId: 'reviewer-a' });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
@@ -64,6 +66,12 @@ describe('POST claim', () => {
     });
   });
 
+  it('400 VALIDATION_ERROR when expectedVersion exceeds int4 range', async () => {
+    const res = await claim('study-001', 'reviewer-a', 3000000000);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
   it('404 STUDY_NOT_FOUND for unknown study', async () => {
     const res = await claim('nope', 'reviewer-a', 1);
     expect(res.status).toBe(404);
@@ -76,6 +84,11 @@ describe('POST claim', () => {
     expect(res.status).toBe(412);
     expect(res.body.code).toBe('STALE_VERSION');
     expect(res.body.current.version).toBe(2);
+    expect(await row('study-001')).toMatchObject({
+      status: 'InReview',
+      ownerId: 'reviewer-a',
+      version: 2,
+    });
   });
 
   it('412 carries current.version 1 when the client is ahead', async () => {
@@ -88,6 +101,11 @@ describe('POST claim', () => {
     const res = await claim('study-004', 'reviewer-b', 1);
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('INVALID_STATE');
+    expect(await row('study-004')).toMatchObject({
+      status: 'InReview',
+      ownerId: 'reviewer-a',
+      version: 1,
+    });
   });
 
   it('two concurrent claims from the same version -> exactly one 200 and one 412', async () => {
