@@ -12,13 +12,20 @@
     "db:down": "docker compose -f docker/docker-compose.yml down",
     "db:migrate": "npm -w apps/api run prisma:deploy && npm -w apps/api run prisma:seed",
     "db:reset": "npm -w apps/api run prisma:reset",
-    "dev": "echo \"todo: filled in later task\" && exit 1",
-    "build": "npm -w apps/api run build",
+    "dev": "concurrently -n api,web \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
+    "build": "npm -w apps/api run build && npm -w apps/web run build",
     "test": "npm run test:api && npm run test:web",
     "test:api": "npm -w apps/api test",
-    "test:web": "echo \"todo: filled in later task\" && exit 1",
+    "test:web": "npm -w apps/web test",
     "test:e2e": "echo \"todo: filled in later task\" && exit 1",
     "test:contention": "npm run db:migrate:test && npm -w apps/api run build && npx tsx scripts/contention-smoke.ts",
     "db:migrate:test": "npm -w apps/api run db:migrate:test"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.5"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }
