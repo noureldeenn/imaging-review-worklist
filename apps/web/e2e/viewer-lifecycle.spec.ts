@@ -87,6 +87,7 @@ test('five close/reopen cycles do not accumulate handlers or engines', async ({ 
     const open = await stats(page);
     expect(open.engines).toBe(1);
     expect(open.observers).toBe(1);
+    expect(open.elementListeners).toBeGreaterThan(baseline.elementListeners);
     await closeViewer(page);
   }
 

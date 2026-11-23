@@ -56,16 +56,8 @@ export async function canvasPixels(page: Page): Promise<Pixels> {
     const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="viewport"] canvas');
     if (!canvas) throw new Error('viewport canvas not found');
     const { width, height } = canvas;
-    let ctx = canvas.getContext('2d');
-    if (!ctx) {
-      // Not a 2D canvas (e.g. a GPU context): copy it into an offscreen 2D canvas.
-      const copy = document.createElement('canvas');
-      copy.width = width;
-      copy.height = height;
-      ctx = copy.getContext('2d');
-      if (!ctx) throw new Error('no 2D context available');
-      ctx.drawImage(canvas, 0, 0);
-    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Expected a 2D canvas (CPU rendering)');
     const rgba = ctx.getImageData(0, 0, width, height).data;
     const data: number[] = [];
     let sum = 0;
@@ -78,6 +70,15 @@ export async function canvasPixels(page: Page): Promise<Pixels> {
       sum += lum;
     }
     return { mean: data.length > 0 ? sum / data.length : 0, data };
+  });
+}
+
+/** Backing-store size of the viewport canvas (changes only when the engine resizes). */
+export async function backingSize(page: Page): Promise<{ width: number; height: number }> {
+  return page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="viewport"] canvas');
+    if (!canvas) throw new Error('viewport canvas not found');
+    return { width: canvas.width, height: canvas.height };
   });
 }
 

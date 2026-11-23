@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import {
   METADATA_TEXT,
+  backingSize,
   canvasPixels,
+  collectErrors,
   diffRatio,
   gotoWorklist,
   openStudy,
@@ -9,8 +11,15 @@ import {
   waitForPaint,
 } from './helpers';
 
+let errors: string[] = [];
+
 test.beforeEach(async ({ page }) => {
+  errors = collectErrors(page);
   await gotoWorklist(page);
+});
+
+test.afterEach(() => {
+  expect(errors).toEqual([]);
 });
 
 test('renders gradient and checkerboard with different real pixels', async ({ page }) => {
@@ -49,10 +58,19 @@ test('viewport follows container resize', async ({ page }) => {
   const before = await canvas.boundingBox();
   expect(before).not.toBeNull();
   const width = before?.width ?? 0;
+  const backingBefore = await backingSize(page);
 
   const height = page.viewportSize()?.height ?? 720;
   await page.setViewportSize({ width: 800, height });
+  // CSS size follows the container regardless; only the backing store proves
+  // that ResizeObserver -> engine.resize() actually ran.
   await expect.poll(async () => (await canvas.boundingBox())?.width ?? width).toBeLessThan(width);
+  await expect
+    .poll(async () => {
+      const now = await backingSize(page);
+      return now.width !== backingBefore.width || now.height !== backingBefore.height;
+    })
+    .toBe(true);
 
   const after = await paintedPixels(page);
   expect(after.mean).toBeGreaterThan(5);
