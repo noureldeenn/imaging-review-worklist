@@ -12,7 +12,7 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   retries: 0,
-  reporter: 'list',
+  reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : 'list',
   globalSetup: './e2e/global-setup.ts',
   use: { baseURL: 'http://localhost:5173' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
