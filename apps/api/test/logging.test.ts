@@ -8,7 +8,7 @@ import { loadConfig } from '../src/config';
 
 interface LogEntry {
   req: {
-    body: { patientName: string; nested: { mrn: string } };
+    body: Record<string, unknown>;
     headers: { authorization: string; cookie: string };
   };
 }
@@ -39,17 +39,31 @@ describe('request logging redaction', () => {
       .post('/x')
       .set('Authorization', 'Bearer secret-token')
       .set('Cookie', 'sid=secret-cookie')
-      .send({ patientName: 'Jane-Raw', nested: { mrn: 'MRN-Raw' } });
+      .send({
+        reviewerId: 'reviewer-a',
+        expectedVersion: 1,
+        reviewNote: 'secret note',
+        patientName: 'Jane-Raw',
+        nested: { mrn: 'MRN-Raw' },
+      });
     await new Promise((r) => setTimeout(r, 100));
 
     const out = lines.join('');
     expect(out).toContain('[REDACTED]');
-    for (const raw of ['Jane-Raw', 'MRN-Raw', 'secret-token', 'secret-cookie']) {
+    const forbidden = [
+      'secret note',
+      'Jane-Raw',
+      'MRN-Raw',
+      'patientName',
+      'mrn',
+      'nested',
+      'reviewNote',
+    ];
+    for (const raw of [...forbidden, 'secret-token', 'secret-cookie']) {
       expect(out).not.toContain(raw);
     }
     const entry = JSON.parse(lines[0] ?? '{}') as LogEntry;
-    expect(entry.req.body.patientName).toBe('[REDACTED]');
-    expect(entry.req.body.nested.mrn).toBe('[REDACTED]');
+    expect(entry.req.body).toEqual({ reviewerId: 'reviewer-a', expectedVersion: 1 });
     expect(entry.req.headers.authorization).toBe('[REDACTED]');
     expect(entry.req.headers.cookie).toBe('[REDACTED]');
   });

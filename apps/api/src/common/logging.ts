@@ -19,6 +19,7 @@ export const PHI_FIELDS = [
   'patientPhone',
   'patientEmail',
   'ssn',
+  'reviewNote',
 ] as const;
 
 // Top-level bodies, one level of nesting (`req.body.*.field`), and credential headers.
@@ -28,6 +29,22 @@ export const REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
 ];
+
+export const SAFE_BODY_FIELDS = ['reviewerId', 'expectedVersion'] as const;
+
+/** Returns only allowlisted top-level keys of a plain-object body, or undefined. */
+export function pickSafe(
+  body: unknown,
+  fields: readonly string[],
+): Record<string, unknown> | undefined {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined;
+  const source = body as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of fields) {
+    if (key in source) out[key] = source[key];
+  }
+  return out;
+}
 
 interface SerializedReq {
   id?: unknown;
@@ -54,13 +71,14 @@ export function buildPinoHttpOptions(
     transport: !stream && config.nodeEnv === 'development' ? { target: 'pino-pretty' } : undefined,
     autoLogging: true,
     serializers: {
-      // pino-http's default req serializer omits the body; include it so redaction applies.
+      // Bodies are allowlisted, not denylisted: reviewNote is free text that could carry PHI,
+      // so only known-safe scalar fields are ever serialized.
       req: (req: SerializedReq) => ({
         id: req.id,
         method: req.method,
         url: req.url,
         headers: req.headers,
-        body: req.raw?.body ?? req.body,
+        body: pickSafe(req.raw?.body ?? req.body, SAFE_BODY_FIELDS),
       }),
     },
     // The request-id middleware has normally set req.id already; this is a fallback.
