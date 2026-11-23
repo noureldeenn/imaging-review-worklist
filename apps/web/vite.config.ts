@@ -1,8 +1,11 @@
+import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:4000' },
   },
@@ -41,7 +44,11 @@ export default defineConfig({
           // node_modules is a transitive dependency of the lazy viewer (vtk.js,
           // codecs, ...) and belongs with Cornerstone so the entry stays small.
           // New app runtime dependencies must be added to this regex, or they land in the lazy chunk.
-          if (/node_modules\/(react|react-dom|scheduler|@tanstack|zustand|zod)\//.test(id))
+          if (
+            /node_modules\/(react|react-dom|scheduler|@tanstack|zustand|zod|@radix-ui|@floating-ui|class-variance-authority|clsx|tailwind-merge|lucide-react)\//.test(
+              id,
+            )
+          )
             return 'vendor';
           return 'cornerstone';
         },

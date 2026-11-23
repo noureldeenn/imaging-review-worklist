@@ -1,0 +1,163 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* Dark-first clinical workstation palette. The app only ships a dark theme,
+   so the tokens live on :root and `.dark` simply re-asserts them. */
+@custom-variant dark (&:is(.dark *));
+
+:root,
+.dark {
+  color-scheme: dark;
+  --radius: 0.5rem;
+
+  --background: oklch(0.17 0.01 260);
+  --foreground: oklch(0.96 0.005 260);
+  --card: oklch(0.205 0.012 260);
+  --card-foreground: oklch(0.96 0.005 260);
+  --popover: oklch(0.23 0.012 260);
+  --popover-foreground: oklch(0.96 0.005 260);
+  --primary: oklch(0.75 0.12 190);
+  --primary-foreground: oklch(0.17 0.02 200);
+  --secondary: oklch(0.25 0.012 260);
+  --secondary-foreground: oklch(0.96 0.005 260);
+  --muted: oklch(0.24 0.012 260);
+  --muted-foreground: oklch(0.72 0.015 260);
+  --accent: oklch(0.27 0.014 260);
+  --accent-foreground: oklch(0.96 0.005 260);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.75 0.12 190);
+
+  /* Status tones (text colours; backgrounds are 12% tints of the same hue). */
+  --status-unassigned: oklch(0.78 0.02 260);
+  --status-review: oklch(0.83 0.14 80);
+  --status-done: oklch(0.8 0.14 160);
+  --warning: oklch(0.83 0.14 80);
+  --viewer: #000;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-status-unassigned: var(--status-unassigned);
+  --color-status-review: var(--status-review);
+  --color-status-done: var(--status-done);
+  --color-warning: var(--warning);
+  --color-viewer: var(--viewer);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-row-in: row-in 160ms ease-out both;
+  --animate-panel-in: panel-in 120ms ease-out both;
+  --animate-pulse-teal: pulse-teal 600ms ease-out 1;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-teal {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.75 0.12 190 / 45%);
+  }
+  100% {
+    box-shadow: 0 0 0 8px oklch(0.75 0.12 190 / 0%);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled),
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Reduced motion: no transforms, no pulses, no shimmer; opacity-only fades of 100 ms or less. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-row-in,
+  .animate-panel-in {
+    animation: fade-only 100ms linear both !important;
+  }
+  .animate-pulse-teal,
+  .animate-shimmer,
+  .animate-spin {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,3 +1,4 @@
+import { Hand, X } from 'lucide-react';
 import { useState } from 'react';
 import { useClaimStudy, useCompleteStudy } from '../queries/study-mutations';
 import { useStudy } from '../queries/studies-queries';
@@ -5,6 +6,10 @@ import { useSessionStore } from '../stores/session-store';
 import { StudyViewerLazy } from '../viewer/study-viewer-lazy';
 import { CompletionForm } from './completion-form';
 import { MutationStatus, type MutationOutcome } from './mutation-status';
+import { StudyHeader } from './study-header';
+import { PendingIcon } from './pending-icon';
+import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
 
 export function StudyPanel({ studyId }: { studyId: string }) {
   const reviewerId = useSessionStore((s) => s.reviewerId);
@@ -25,8 +30,25 @@ export function StudyPanel({ studyId }: { studyId: string }) {
       message: last === 'claim' ? 'Study claimed.' : 'Study completed.',
     };
 
-  if (isPending) return <p role="status">Loading study…</p>;
-  if (isError || !study) return <p role="alert">Could not load study {studyId}.</p>;
+  if (isPending) {
+    return (
+      <div className="flex flex-col gap-3 p-4">
+        <p role="status" className="text-xs text-muted-foreground">
+          Loading study…
+        </p>
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="aspect-[4/3] max-h-[480px] w-full" />
+      </div>
+    );
+  }
+  if (isError || !study) {
+    return (
+      <p role="alert" className="m-4 text-sm text-destructive">
+        Could not load study {studyId}.
+      </p>
+    );
+  }
 
   const owner =
     study.ownerId === null ? 'none' : study.ownerId === reviewerId ? 'you' : study.ownerId;
@@ -34,13 +56,9 @@ export function StudyPanel({ studyId }: { studyId: string }) {
   const canComplete = study.status === 'InReview' && study.ownerId === reviewerId;
 
   return (
-    <article aria-label={`Study ${study.id}`}>
-      <h2>
-        {study.id} · {study.modality} · {study.status} · version {study.version}
-      </h2>
-      <p>Owner: {owner}</p>
-      <div className="actions">
-        <button
+    <article aria-label={`Study ${study.id}`} className="flex flex-col gap-3 p-3 sm:p-4">
+      <StudyHeader study={study} owner={owner}>
+        <Button
           type="button"
           disabled={!canClaim}
           onClick={() => {
@@ -52,12 +70,14 @@ export function StudyPanel({ studyId }: { studyId: string }) {
             });
           }}
         >
+          <PendingIcon pending={claim.isPending} icon={Hand} />
           Claim
-        </button>
-        <button type="button" onClick={() => selectStudy(null)}>
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => selectStudy(null)}>
+          <X aria-hidden="true" />
           Close viewer
-        </button>
-      </div>
+        </Button>
+      </StudyHeader>
       <StudyViewerLazy studyId={studyId} />
       {canComplete && (
         <CompletionForm

@@ -20,7 +20,15 @@ let LazyViewer = createLazyViewer();
 export function StudyViewerLazy({ studyId }: { studyId: string }) {
   return (
     <ViewerErrorBoundary resetKey={studyId}>
-      <Suspense fallback={<p role="status">Loading viewer…</p>}>
+      <Suspense
+        fallback={
+          <div className="grid h-[min(60vh,420px)] sm:h-[clamp(280px,58vh,620px)] place-items-center rounded-lg border bg-viewer">
+            <p role="status" className="text-xs text-muted-foreground">
+              Loading viewer…
+            </p>
+          </div>
+        }
+      >
         <LazyViewer studyId={studyId} />
       </Suspense>
     </ViewerErrorBoundary>
