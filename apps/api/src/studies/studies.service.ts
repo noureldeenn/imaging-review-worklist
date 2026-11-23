@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { stat } from 'node:fs/promises';
 import type { Prisma } from '@prisma/client';
 import { ApiError } from '../common/api-error';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,7 @@ import type {
 } from './studies.dto';
 import { toStudyDto } from './studies.mapper';
 import { classifyFailure, runCas } from './study-mutations';
+import { resolveStudyFile } from './study-files';
 
 const LIST_LIMIT = 100;
 
@@ -33,6 +35,13 @@ export class StudiesService {
     const row = await this.prisma.study.findUnique({ where: { id } });
     if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', `Study ${id} not found`);
     return toStudyDto(row);
+  }
+
+  async getFile(id: string): Promise<{ path: string; size: number }> {
+    const row = await this.prisma.study.findUnique({ where: { id } });
+    if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', `Study ${id} not found`);
+    const path = resolveStudyFile(row.fileKey);
+    return { path, size: (await stat(path)).size };
   }
 
   private async assertReviewer(reviewerId: string): Promise<void> {
