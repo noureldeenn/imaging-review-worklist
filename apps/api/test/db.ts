@@ -3,11 +3,13 @@ import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { seed } from '../prisma/seed';
 import { loadConfig } from '../src/config';
-import { ApiErrorFilter } from '../src/common/api-error.filter';
+import { configureApp } from '../src/app-setup';
 import { AppModule } from '../src/app.module';
 
 export function createTestPrisma(): PrismaClient {
-  return new PrismaClient({ datasources: { db: { url: loadConfig().databaseUrl } } });
+  return new PrismaClient({
+    datasources: { db: { url: loadConfig().databaseUrl } },
+  });
 }
 
 export async function resetTestDb(prisma: PrismaClient): Promise<void> {
@@ -16,10 +18,11 @@ export async function resetTestDb(prisma: PrismaClient): Promise<void> {
 }
 
 export async function createTestApp(): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule],
+  }).compile();
   const app = moduleRef.createNestApplication();
-  app.setGlobalPrefix('api');
-  app.useGlobalFilters(new ApiErrorFilter());
+  configureApp(app, loadConfig());
   await app.init();
   return app;
 }

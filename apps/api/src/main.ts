@@ -1,15 +1,15 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ApiErrorFilter } from './common/api-error.filter';
+import { configureApp } from './app-setup';
 import { loadConfig } from './config';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api');
-  app.useGlobalFilters(new ApiErrorFilter());
+  const config = loadConfig();
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  configureApp(app, config);
   app.enableShutdownHooks();
-  await app.listen(loadConfig().port);
+  await app.listen(config.port);
 }
 
 void bootstrap();
