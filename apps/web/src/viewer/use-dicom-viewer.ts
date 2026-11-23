@@ -26,6 +26,10 @@ type ViewState = {
 
 const IDLE: ViewState = { state: "idle", error: null, metadata: null, windowLevel: null };
 
+// Rendering engines are looked up by id in a global cache, so ids must never be
+// reused: a stale viewport resolving late would otherwise reach the NEXT viewer.
+let engineCount = 0;
+
 export type DicomViewer = ViewState & {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   setWindowLevel(ww: number, wl: number): void;
@@ -49,10 +53,11 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
     const seq = loadSeq.current;
     disposed.current = false;
     const imageId = imageIdFor(studyId);
-    const owned: { engine: RenderingEngine | null; observer: ResizeObserver | null } = {
-      engine: null,
-      observer: null,
-    };
+    const owned: {
+      engine: RenderingEngine | null;
+      observer: ResizeObserver | null;
+      viewport: StackViewportLike | null;
+    } = { engine: null, observer: null, viewport: null };
     // True when this load has been superseded (study change) or the viewer was
     // closed: the result must not touch the engine, the DOM or React state.
     const isStale = () => {
@@ -76,7 +81,8 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       if (isStale()) return;
 
       instrumentElement(el);
-      const engine = new RenderingEngine(`viewer-${seq}`);
+      engineCount += 1;
+      const engine = new RenderingEngine(`viewer-${engineCount}`);
       owned.engine = engine;
       trackEngine(1);
       engine.enableElement({
@@ -85,6 +91,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
         element: el,
       });
       const viewport: StackViewportLike = engine.getViewport<Types.IStackViewport>(VIEWPORT_ID);
+      owned.viewport = viewport;
 
       let loaded = false;
       const observer = new ResizeObserver(() => {
@@ -130,6 +137,13 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       if (owned.observer) {
         owned.observer.disconnect();
         trackObserver(-1);
+      }
+      if (owned.viewport) {
+        // Cornerstone 5.19.4's CPU load callback ignores `isDisabled` and calls
+        // render() through the engine cache when a request lands after destroy,
+        // throwing an uncaught TypeError. Disarm the dead viewport so a late
+        // load settles quietly (and is then counted as discarded).
+        owned.viewport.render = () => undefined;
       }
       if (owned.engine) {
         try {

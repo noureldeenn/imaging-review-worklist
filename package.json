@@ -17,7 +17,7 @@
     "test": "npm run test:api && npm run test:web",
     "test:api": "npm -w apps/api test",
     "test:web": "npm -w apps/web test",
-    "test:e2e": "echo \"todo: filled in later task\" && exit 1",
+    "test:e2e": "npm -w apps/api run build && npm -w apps/web run test:e2e",
     "test:contention": "npm run db:migrate:test && npm -w apps/api run build && npx tsx scripts/contention-smoke.ts",
     "db:migrate:test": "npm -w apps/api run db:migrate:test"
   },

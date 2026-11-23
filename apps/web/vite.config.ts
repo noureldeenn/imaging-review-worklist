@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { '/api': 'http://localhost:4000' },
+    proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:4000' },
   },
   // The DICOM loader spawns its decode worker via `new URL(..., import.meta.url)`;
   // pre-bundling would break that URL, and the worker is an ES module. Because
