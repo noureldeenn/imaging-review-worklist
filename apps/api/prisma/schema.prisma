@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StudyStatus {
+  Unassigned
+  InReview
+  Completed
+}
+
+model Reviewer {
+  id      String  @id
+  name    String
+  studies Study[]
+}
+
+model Study {
+  id         String      @id
+  modality   String
+  createdAt  DateTime
+  status     StudyStatus @default(Unassigned)
+  ownerId    String?
+  owner      Reviewer?   @relation(fields: [ownerId], references: [id])
+  reviewNote String?
+  version    Int         @default(1)
+  fileKey    String
+
+  @@index([status, modality])
+  @@index([createdAt, id])
+}

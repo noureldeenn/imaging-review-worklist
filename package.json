@@ -1,17 +1,21 @@
 {
   "name": "imaging-review-worklist",
   "private": true,
-  "workspaces": ["apps/*"],
-  "engines": { "node": ">=22" },
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "db:up": "docker compose -f docker/docker-compose.yml up -d",
+    "db:up": "docker compose -f docker/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f docker/docker-compose.yml down",
-    "db:migrate": "echo \"todo: filled in later task\" && exit 1",
-    "db:reset": "echo \"todo: filled in later task\" && exit 1",
+    "db:migrate": "npm -w apps/api run prisma:deploy && npm -w apps/api run prisma:seed",
+    "db:reset": "npm -w apps/api run prisma:reset",
     "dev": "echo \"todo: filled in later task\" && exit 1",
-    "build": "echo \"todo: filled in later task\" && exit 1",
+    "build": "npm -w apps/api run build",
     "test": "echo \"todo: filled in later task\" && exit 1",
-    "test:api": "echo \"todo: filled in later task\" && exit 1",
+    "test:api": "npm -w apps/api test",
     "test:web": "echo \"todo: filled in later task\" && exit 1",
     "test:e2e": "echo \"todo: filled in later task\" && exit 1",
     "test:contention": "echo \"todo: filled in later task\" && exit 1"
