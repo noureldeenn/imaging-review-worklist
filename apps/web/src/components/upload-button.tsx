@@ -7,7 +7,8 @@ import { Button } from './ui/button';
 
 function reason(err: unknown): string {
   if (err instanceof ApiRequestError) return err.message;
-  if (err instanceof NetworkError) return 'Network error';
+  if (err instanceof NetworkError)
+    return 'Could not reach the server. Check that the API is running, then try again';
   return 'Upload failed';
 }
 

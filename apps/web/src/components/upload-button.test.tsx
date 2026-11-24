@@ -47,4 +47,13 @@ describe('UploadButton', () => {
       ),
     );
   });
+
+  it('explains what to do when the server cannot be reached', async () => {
+    server.use(http.post('/api/studies/upload', () => HttpResponse.error()));
+    renderWithProviders(<UploadButton />);
+    await userEvent.upload(screen.getByTestId('upload-input'), new File(['x'], 'a.dcm'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('a.dcm: Could not reach the server'),
+    );
+  });
 });
