@@ -11,9 +11,26 @@ export async function gotoWorklist(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Open study study-001' })).toBeVisible();
 }
 
-/** Clicks a worklist row without waiting for the image (for delayed loads). */
+/** Opens the Worklist drawer if it is closed. */
+export async function openWorklist(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: 'Worklist', exact: true });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(page.getByRole('region', { name: 'Worklist', exact: true })).toBeVisible();
+}
+
+/** Opens the Review panel if it is closed (overlay and sheet modes start closed). */
+export async function openReview(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: 'Review', exact: true });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(page.getByRole('region', { name: 'Review', exact: true })).toBeVisible();
+}
+
+/** Clicks a worklist row (through the drawer) without waiting for the image (for delayed loads). */
 export async function clickStudy(page: Page, id: string): Promise<void> {
+  await openWorklist(page);
   await page.getByRole('button', { name: `Open study ${id}` }).click();
+  // Selecting a study closes the drawer.
+  await expect(page.getByRole('region', { name: 'Worklist', exact: true })).toBeHidden();
   await expect(page.getByRole('img', { name: `DICOM image for ${id}` })).toBeAttached();
 }
 
@@ -23,9 +40,39 @@ export async function openStudy(page: Page, id: string): Promise<void> {
   await expect(page.getByText(/^File metadata:/).or(page.getByRole('alert'))).toBeVisible();
 }
 
+/** "Close viewer" lives in the Review panel header. */
 export async function closeViewer(page: Page): Promise<void> {
+  await openReview(page);
   await page.getByRole('button', { name: 'Close viewer' }).click();
   await expect(page.getByTestId('viewport')).toHaveCount(0);
+}
+
+/** Toolbar button by its exact accessible name. */
+export function toolbarButton(page: Page, name: string) {
+  return page
+    .getByRole('toolbar', { name: 'Image tools' })
+    .getByRole('button', { name, exact: true });
+}
+
+/** Items that live in the toolbar's More menu (Invert is a menuitemcheckbox). */
+export const MORE_ITEMS = [
+  'Invert (I)',
+  'Rotate left (<)',
+  'Rotate right (>)',
+  'Flip horizontal (H)',
+  'Flip vertical (V)',
+] as const;
+
+/** Runs a toolbar control: a More menu item (opening the menu first) or a button. */
+export async function runControl(page: Page, name: string): Promise<void> {
+  if ((MORE_ITEMS as readonly string[]).includes(name)) {
+    await toolbarButton(page, 'More').click();
+    const role = name.startsWith('Invert') ? 'menuitemcheckbox' : 'menuitem';
+    await page.getByRole('menu').getByRole(role, { name, exact: true }).click();
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    return;
+  }
+  await toolbarButton(page, name).click();
 }
 
 /** Snapshot of the viewer's live lifecycle counters. */

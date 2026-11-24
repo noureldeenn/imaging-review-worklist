@@ -1,35 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { makeStudy } from '../test/handlers';
 import { StudyHeader } from './study-header';
 
 function Pane({ id }: { id: string }) {
   return (
-    <section aria-label="Study viewer">
-      <StudyHeader study={makeStudy(Number(id.slice(-3)))} owner="none">
+    <section aria-label="Review">
+      <StudyHeader study={makeStudy(Number(id.slice(-3)))} owner="none" autoFocus>
         <button type="button">Claim</button>
       </StudyHeader>
     </section>
   );
 }
 
-describe('StudyHeader focus (narrow viewport)', () => {
-  beforeEach(() => {
-    vi.stubGlobal(
-      'matchMedia',
-      (query: string) =>
-        ({
-          matches: query === '(max-width: 899px)',
-          media: query,
-          addEventListener: () => undefined,
-          removeEventListener: () => undefined,
-        }) as unknown as MediaQueryList,
-    );
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
+// autoFocus: the header sits in an open floating review panel (overlay or bottom sheet).
+describe('StudyHeader focus (floating review panel)', () => {
   it('does not steal focus from Claim when re-rendered with the same study', () => {
     const { rerender } = render(<Pane id="study-002" />);
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: /study-002/ }));
@@ -54,5 +39,22 @@ describe('StudyHeader focus (narrow viewport)', () => {
     screen.getByRole('button', { name: 'Claim' }).focus();
     rerender(<Pane id="study-003" />);
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: /study-003/ }));
+  });
+});
+
+describe('StudyHeader focus (push panel)', () => {
+  it('never moves focus when not in a floating panel', () => {
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    render(
+      <section aria-label="Review">
+        <StudyHeader study={makeStudy(2)} owner="none">
+          <button type="button">Claim</button>
+        </StudyHeader>
+      </section>,
+    );
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
   });
 });

@@ -175,6 +175,14 @@ describe('StudyPanel', () => {
       queryKey: studiesKeys.detail('study-001'),
     });
     await waitFor(() => expect(gets).toBe(2));
+    await user.click(claim);
+    await screen.findByRole('heading', { name: /version 2/ });
+    expect(screen.getByRole('heading', { name: /InReview · version 2/ })).toBeInTheDocument();
+
+    // Record every heading from the moment the claimed state is shown (the held GET
+    // cannot land before d1 resolves below). The viewer now mounts beside the panel
+    // as soon as a study is selected, so unrelated DOM mutations before the claim
+    // would otherwise record the legitimate pre-claim heading.
     const seen: string[] = [];
     const observer = new MutationObserver(() => {
       for (const h of screen.queryAllByRole('heading')) seen.push(h.textContent ?? '');
@@ -184,9 +192,6 @@ describe('StudyPanel', () => {
       subtree: true,
       characterData: true,
     });
-    await user.click(claim);
-    await screen.findByRole('heading', { name: /version 2/ });
-    expect(screen.getByRole('heading', { name: /InReview · version 2/ })).toBeInTheDocument();
 
     d1.resolve(makeStudy(1, { version: 1 }));
     await waitFor(() =>

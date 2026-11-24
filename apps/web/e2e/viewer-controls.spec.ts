@@ -8,7 +8,9 @@ import {
   gotoWorklist,
   openStudy,
   paintedPixels,
+  runControl,
   stats,
+  toolbarButton,
   waitForPaint,
   type Pixels,
 } from './helpers';
@@ -24,11 +26,11 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
+const button = toolbarButton;
 const readout = (page: Page) => page.getByTestId('viewer-readout');
 
 async function click(page: Page, name: string): Promise<Pixels> {
-  await button(page, name).click();
+  await runControl(page, name);
   await waitForPaint(page);
   return canvasPixels(page);
 }
@@ -65,25 +67,25 @@ test('toolbar zoom, rotate, flip and invert change pixels and undo restores them
   await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
   expect(diffRatio(await click(page, 'Fit / Reset'), base)).toBeLessThan(0.01);
 
-  const rotated = await click(page, 'Rotate right');
+  const rotated = await click(page, 'Rotate right (>)');
   expect(diffRatio(rotated, base)).toBeGreaterThan(0.1);
   await expect(readout(page)).toHaveText('Zoom 100% · Rot 90°');
   // The gradient is symmetric top-to-bottom, so flip vertical is checked on the rotated image.
-  const flippedV = await click(page, 'Flip vertical');
+  const flippedV = await click(page, 'Flip vertical (V)');
   expect(diffRatio(flippedV, rotated)).toBeGreaterThan(0.1);
   // Rotated a quarter turn, a screen-vertical flip mirrors the image's own columns.
-  await expect(readout(page)).toContainText('Flipped H');
-  expect(diffRatio(await click(page, 'Flip vertical'), rotated)).toBeLessThan(0.01);
-  expect(diffRatio(await click(page, 'Rotate left'), base)).toBeLessThan(0.01);
+  await expect(readout(page)).toContainText('Mirrored');
+  expect(diffRatio(await click(page, 'Flip vertical (V)'), rotated)).toBeLessThan(0.01);
+  expect(diffRatio(await click(page, 'Rotate left (<)'), base)).toBeLessThan(0.01);
 
-  expect(diffRatio(await click(page, 'Flip horizontal'), base)).toBeGreaterThan(0.1);
-  await expect(readout(page)).toContainText('Flipped H');
-  expect(diffRatio(await click(page, 'Flip horizontal'), base)).toBeLessThan(0.01);
+  expect(diffRatio(await click(page, 'Flip horizontal (H)'), base)).toBeGreaterThan(0.1);
+  await expect(readout(page)).toContainText('Mirrored');
+  expect(diffRatio(await click(page, 'Flip horizontal (H)'), base)).toBeLessThan(0.01);
 
   // A full-range gradient has the same mean when inverted, so compare per pixel.
-  expect(diffRatio(await click(page, 'Invert'), base)).toBeGreaterThan(0.3);
+  expect(diffRatio(await click(page, 'Invert (I)'), base)).toBeGreaterThan(0.3);
   await expect(readout(page)).toContainText('Inverted');
-  expect(diffRatio(await click(page, 'Invert'), base)).toBeLessThan(0.01);
+  expect(diffRatio(await click(page, 'Invert (I)'), base)).toBeLessThan(0.01);
 });
 
 test('Fit / Reset restores zoom, rotation, flips, invert and window/level together', async ({
@@ -91,8 +93,8 @@ test('Fit / Reset restores zoom, rotation, flips, invert and window/level togeth
 }) => {
   const base = await openGradient(page);
   const ww = await page.getByLabel('Window width').inputValue();
-  for (const name of ['Zoom in', 'Rotate right', 'Flip horizontal', 'Invert']) {
-    await button(page, name).click();
+  for (const name of ['Zoom in', 'Rotate right (>)', 'Flip horizontal (H)', 'Invert (I)']) {
+    await runControl(page, name);
   }
   await page.getByLabel('Window width').fill('100');
   await waitForPaint(page);
@@ -119,13 +121,13 @@ test('wheel zooms without scrolling the page', async ({ page }) => {
 test('pan and window/level drags move the image and sync the sliders', async ({ page }) => {
   const base = await openGradient(page);
 
-  await button(page, 'Pan tool').click();
-  await expect(button(page, 'Pan tool')).toHaveAttribute('aria-pressed', 'true');
+  await button(page, 'Pan (P)').click();
+  await expect(button(page, 'Pan (P)')).toHaveAttribute('aria-pressed', 'true');
   await drag(page, 90, 40);
   expect(diffRatio(await canvasPixels(page), base)).toBeGreaterThan(0.1);
   expect(diffRatio(await click(page, 'Fit / Reset'), base)).toBeLessThan(0.01);
 
-  await button(page, 'Window/Level tool').click();
+  await button(page, 'Levels (L)').click();
   const ww = Number(await page.getByLabel('Window width').inputValue());
   await drag(page, 120, 30);
   expect(diffRatio(await canvasPixels(page), base)).toBeGreaterThan(0.1);
@@ -144,17 +146,20 @@ test('keyboard shortcuts on the focused viewport match the buttons', async ({ pa
     return canvasPixels(page);
   };
 
-  const byButton = await click(page, 'Rotate right');
+  const byButton = await click(page, 'Rotate right (>)');
   await click(page, 'Fit / Reset');
   expect(diffRatio(await press('r'), byButton)).toBeLessThan(0.01);
   expect(diffRatio(await press('Shift+R'), base)).toBeLessThan(0.01);
+  // OHIF keys: > and < rotate as well.
+  expect(diffRatio(await press('>'), byButton)).toBeLessThan(0.01);
+  expect(diffRatio(await press('<'), base)).toBeLessThan(0.01);
 
-  const flipped = await click(page, 'Flip horizontal');
+  const flipped = await click(page, 'Flip horizontal (H)');
   await click(page, 'Fit / Reset');
   expect(diffRatio(await press('h'), flipped)).toBeLessThan(0.01);
   expect(diffRatio(await press('0'), base)).toBeLessThan(0.01);
 
-  const inverted = await click(page, 'Invert');
+  const inverted = await click(page, 'Invert (I)');
   await click(page, 'Fit / Reset');
   expect(diffRatio(await press('i'), inverted)).toBeLessThan(0.01);
   await expect(readout(page)).toContainText('Inverted');
@@ -181,16 +186,16 @@ test('after using every control, five close/reopen cycles leave no handlers', as
     for (const name of [
       'Zoom in',
       'Zoom out',
-      'Rotate left',
-      'Rotate right',
-      'Flip horizontal',
-      'Flip vertical',
-      'Invert',
-      'Pan tool',
-      'Zoom tool',
-      'Window/Level tool',
+      'Rotate left (<)',
+      'Rotate right (>)',
+      'Flip horizontal (H)',
+      'Flip vertical (V)',
+      'Invert (I)',
+      'Pan (P)',
+      'Zoom (Z)',
+      'Levels (L)',
     ]) {
-      await button(page, name).click();
+      await runControl(page, name);
     }
     await drag(page, 40, 20);
     await page.getByTestId('viewport').press('r');
@@ -215,43 +220,44 @@ test('after using every control, five close/reopen cycles leave no handlers', as
   expect(s.elementListeners).toBe(baseline.elementListeners);
 });
 
-test('a scrollbar-sized resize keeps the zoom, a real resize refits', async ({ page }) => {
-  await openGradient(page);
-  await button(page, 'Zoom in').click();
-  await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
-  const size = page.viewportSize() ?? { width: 1280, height: 720 };
+test.describe('resize thresholds', () => {
+  // Wide enough that a 12px change stays in the push layout (>= 1280px): crossing
+  // that breakpoint would move the review panel and resize the viewport for real.
+  test.use({ viewport: { width: 1440, height: 900 } });
 
-  await page.setViewportSize({ width: size.width - 12, height: size.height });
-  await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
-  await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
+  test('a scrollbar-sized resize keeps the zoom, a real resize refits', async ({ page }) => {
+    await openGradient(page);
+    await button(page, 'Zoom in').click();
+    await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
+    const size = page.viewportSize() ?? { width: 1280, height: 720 };
 
-  await page.setViewportSize({ width: 900, height: size.height });
-  await expect(readout(page)).toHaveText('Zoom 100% · Rot 0°');
-  await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
+    await page.setViewportSize({ width: size.width - 12, height: size.height });
+    await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
+    await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
+
+    await page.setViewportSize({ width: 900, height: size.height });
+    await expect(readout(page)).toHaveText('Zoom 100% · Rot 0°');
+    await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
+  });
 });
 
 for (const width of [360, 390, 768, 820]) {
   test.describe(`toolbar at ${width}px`, () => {
     test.use({ viewport: { width, height: 844 } });
 
-    test('wraps without horizontal overflow and has 44px targets', async ({ page }) => {
+    test('icon toolbar: at most seven 44px buttons, no horizontal overflow', async ({ page }) => {
       await openGradient(page);
       await expect(page.getByRole('toolbar', { name: 'Image tools' })).toBeVisible();
       const m = await page.evaluate(() => {
         const de = document.documentElement;
         const tb = document.querySelector<HTMLElement>('[role="toolbar"]');
         if (!tb) throw new Error('toolbar missing');
-        // Measure the controls themselves: below 900px their groups are
-        // `display: contents` wrappers with empty boxes.
-        const targets = [...tb.querySelectorAll('button, summary')].map((e) => {
-          const r = e.getBoundingClientRect();
-          return {
-            name: e.getAttribute('aria-label') ?? e.textContent,
-            w: r.width,
-            h: r.height,
-            right: r.right,
-          };
-        });
+        const targets = [...tb.querySelectorAll('button')]
+          .filter((e) => e.getClientRects().length > 0)
+          .map((e) => {
+            const r = e.getBoundingClientRect();
+            return { name: e.textContent, w: r.width, h: r.height, right: r.right };
+          });
         return {
           page: de.scrollWidth - de.clientWidth,
           toolbar: tb.scrollWidth - tb.clientWidth,
@@ -264,7 +270,7 @@ for (const width of [360, 390, 768, 820]) {
       expect(m.page).toBe(0);
       expect(m.toolbar).toBe(0);
       expect(m.right).toBeLessThanOrEqual(m.clientWidth);
-      expect(m.count).toBe(12);
+      expect(m.count).toBeLessThanOrEqual(7);
       expect(m.small).toEqual([]);
     });
   });

@@ -1,7 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fake } from '../test/fake-cornerstone';
+import { layoutStub } from '../test/toolbar-fixtures';
+import { AppToolbar } from '../toolbar/app-toolbar';
 import { StudyViewer } from './study-viewer';
 
 vi.mock('./cornerstone-init', () => ({ initCornerstone: () => Promise.resolve() }));
@@ -23,7 +25,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function renderReady() {
-  render(<StudyViewer studyId="study-001" />);
+  // The app toolbar drives the viewer through the viewer bridge.
+  render(
+    <>
+      <AppToolbar layout={layoutStub()} />
+      <StudyViewer studyId="study-001" />
+    </>,
+  );
   await waitFor(() => expect(fake.stacks).toHaveLength(1));
   fake.stacks[0]?.d.resolve('ok');
   return screen.findByTestId('viewer-readout');
@@ -32,22 +40,34 @@ async function renderReady() {
 describe('StudyViewer controls', () => {
   it('the readout follows the toolbar and Fit / Reset restores it', async () => {
     const readout = await renderReady();
-    const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
+    const user = userEvent.setup();
+    const click = (name: string) => user.click(screen.getByRole('button', { name }));
+    const menu = async (role: 'menuitem' | 'menuitemcheckbox', name: string) => {
+      await click('More');
+      await user.click(within(screen.getByRole('menu')).getByRole(role, { name }));
+    };
+    const invertChecked = async () => {
+      await click('More');
+      const checked = screen
+        .getByRole('menuitemcheckbox', { name: 'Invert (I)' })
+        .getAttribute('aria-checked');
+      await user.keyboard('{Escape}');
+      return checked;
+    };
     expect(readout).toHaveTextContent('Zoom 100% · Rot 0°');
 
     await click('Zoom in');
-    await click('Rotate right');
-    await click('Invert');
-    await click('Flip vertical');
+    await menu('menuitem', 'Rotate right (>)');
+    await menu('menuitemcheckbox', 'Invert (I)');
+    await menu('menuitem', 'Flip vertical (V)');
     expect(readout).toHaveTextContent('Zoom 125% · Rot 90°');
     expect(readout).toHaveTextContent('Inverted');
-    // Rotated 90 degrees, a screen-vertical flip mirrors the image's own columns.
-    expect(readout).toHaveTextContent('Flipped H');
-    expect(screen.getByRole('button', { name: 'Invert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(readout).toHaveTextContent('Mirrored');
+    expect(await invertChecked()).toBe('true');
 
     await click('Fit / Reset');
     expect(readout).toHaveTextContent(/^Zoom 100% · Rot 0°$/);
-    expect(screen.getByRole('button', { name: 'Invert' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await invertChecked()).toBe('false');
   });
 
   it('the viewport is focusable and describes its shortcuts', async () => {

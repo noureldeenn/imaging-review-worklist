@@ -68,6 +68,38 @@ describe('viewer controls', () => {
     expect(key('x').defaultPrevented).toBe(false);
   });
 
+  it('OHIF keys: l/p/z pick the tool, < , > . rotate, h/v flip, i inverts (w stays an alias)', async () => {
+    const { result } = await mountReady();
+    const tool = () => result.current.view.tool;
+    expect(key('p').defaultPrevented).toBe(true);
+    expect(tool()).toBe('pan');
+    key('z');
+    expect(tool()).toBe('zoom');
+    key('l');
+    expect(tool()).toBe('windowLevel');
+    key('z');
+    key('w');
+    expect(tool()).toBe('windowLevel');
+
+    expect(key('>').defaultPrevented).toBe(true);
+    expect(result.current.view.rotation).toBe(90);
+    key('.');
+    expect(result.current.view.rotation).toBe(180);
+    key('<');
+    expect(result.current.view.rotation).toBe(90);
+    key(',');
+    expect(result.current.view.rotation).toBe(0);
+
+    key('h');
+    expect(result.current.view).toMatchObject({ flipH: true, flipV: false });
+    key('v');
+    expect(result.current.view).toMatchObject({ flipH: true, flipV: true });
+    key('i');
+    expect(result.current.view.invert).toBe(true);
+    key('0');
+    expect(result.current.view).toEqual(DEFAULT_VIEW);
+  });
+
   it('arrow keys pan the camera and do not scroll the page', async () => {
     // jsdom has no layout: give the viewport a size (pan step = 10 % of it).
     Object.defineProperty(container(), 'clientWidth', { value: 200 });
