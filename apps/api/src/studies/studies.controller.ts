@@ -99,11 +99,21 @@ export class StudiesController {
   @ApiConsumes('application/dicom')
   @ApiResponse({ status: 201, description: 'The new study', ...STUDY_OK })
   @ApiErrorResponse(...BAD_REQUEST)
+  @ApiErrorResponse(415, 'Content-Type is not application/dicom', {
+    code: 'REQUEST_REJECTED',
+    message: 'Content-Type must be application/dicom',
+  })
   @ApiErrorResponse(413, 'File is larger than the upload limit', {
     code: 'REQUEST_REJECTED',
     message: 'The file is too large',
   })
   async upload(@Req() req: UploadRequest): Promise<StudyDto> {
+    // application/dicom is not a CORS-safelisted type, so browsers must preflight it and the
+    // origin allowlist applies. Anything else (e.g. a cross-site form post) is refused unread.
+    const type = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
+    if (type !== 'application/dicom') {
+      throw new ApiError(415, 'REQUEST_REJECTED', 'Content-Type must be application/dicom');
+    }
     const declared = Number(req.headers['content-length']);
     if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) throw tooLarge();
     const chunks: Buffer[] = [];

@@ -66,4 +66,16 @@ describe('POST /api/studies/upload', () => {
     expect(corrupt.status).toBe(400);
     expect((await readdir(dir)).length).toBe(before);
   });
+
+  it('refuses any other Content-Type with 415 before reading the body', async () => {
+    const bytes = await readFile(path.join(FIXTURES, 'gradient.dcm'));
+    for (const type of ['text/plain', 'application/octet-stream', 'multipart/form-data']) {
+      const res = await request(app.getHttpServer())
+        .post('/api/studies/upload')
+        .set('Content-Type', type)
+        .send(bytes);
+      expect(res.status).toBe(415);
+      expect(res.body.code).toBe('REQUEST_REJECTED');
+    }
+  });
 });
