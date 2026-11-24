@@ -1,6 +1,7 @@
 import { ImageOff, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { AnnotationOverlay } from './annotations/annotation-overlay';
+import { MeasurementNotice } from './annotations/measurement-notice';
 import { useDicomViewer } from './use-dicom-viewer';
 import { useInfoStripOffset } from './use-info-strip-offset';
 import { useViewerBridge, type ViewerCommands } from './viewer-bridge';
@@ -101,6 +102,7 @@ export function StudyViewer({ studyId }: { studyId: string }) {
       >
         {ready && metadata && <ViewerMetadata metadata={metadata} />}
         {ready && <ViewerReadout view={view} />}
+        <MeasurementNotice studyId={studyId} />
         <div className="ml-auto flex min-w-0 items-center gap-3 max-[899px]:ml-0 max-[899px]:basis-full">
           <ViewerControls
             windowLevel={windowLevel}

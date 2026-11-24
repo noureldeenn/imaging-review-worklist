@@ -94,9 +94,11 @@ export function createAnnotationDrawing({
     frame = null;
     const s = state;
     if (s.kind === 'drag') store().setDraft({ studyId, kind: s.tool, points: [s.start, s.end] });
-    else if (s.kind === 'angle')
-      store().setDraft({ studyId, kind: 'angle', points: [...s.points, s.cursor] });
-    else if (s.kind === 'handle') store().update(studyId, s.target, s.points);
+    else if (s.kind === 'angle') {
+      // While the first press is held, its point anchors the preview of the first arm.
+      const anchor = s.points.length === 0 && s.press ? [toImage(s.press.from)] : s.points;
+      store().setDraft({ studyId, kind: 'angle', points: [...anchor, s.cursor] });
+    } else if (s.kind === 'handle') store().update(studyId, s.target, s.points);
   };
   const schedule = () => {
     frame ??= scheduler.request(() => {

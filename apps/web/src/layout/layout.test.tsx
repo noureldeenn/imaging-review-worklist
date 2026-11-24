@@ -231,7 +231,7 @@ describe('Mutation feedback reaches a collapsed panel', () => {
     expect(drawer()).toHaveAttribute('data-state', 'open');
     expect(panel()).toHaveAttribute('data-state', 'closed');
     expect(document.activeElement).toBe(focused);
-    expect(button('Review')).toHaveAttribute('aria-description', ATTENTION_DESCRIPTION);
+    expect(button('Review')).toHaveAccessibleDescription(ATTENTION_DESCRIPTION);
 
     // The 412 recovery stays reachable from the badged button.
     await user.click(button('Review'));

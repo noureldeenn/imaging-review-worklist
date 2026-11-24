@@ -210,7 +210,8 @@ function resolveItem(spec: ToolbarItemSpec, ctx: ToolbarContext): ToolbarItem {
   };
   if (items) {
     item.items = items;
-    if (items.some((child) => child.pressed)) item.holdsActive = true;
+    const active = items.find((child) => child.pressed);
+    if (active) item.activeTool = active.label;
   }
   if (spec.kind === 'tool') item.pressed = spec.isActive?.(ctx) ?? false;
   if (spec.checkable) item.checked = spec.isActive?.(ctx) ?? false;

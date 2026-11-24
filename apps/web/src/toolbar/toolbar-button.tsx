@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { forwardRef, type ComponentPropsWithoutRef, type FocusEvent } from 'react';
+import { forwardRef, useId, type ComponentPropsWithoutRef, type FocusEvent } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { cn } from '../lib/utils';
 import type { ToolbarItem } from './toolbar-types';
@@ -39,46 +39,60 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, Props>(function Toolb
   ref,
 ) {
   const Icon = item.icon;
+  const descriptionId = useId();
   const controlled =
     tooltipOpen === undefined ? {} : { open: tooltipOpen, onOpenChange: onTooltipOpenChange };
+  // Visual cues (the attention dot, the active-tool tint) reach assistive tech
+  // as a description; the accessible name stays the visible label.
+  const description = [
+    item.attention ? ATTENTION_DESCRIPTION : null,
+    item.activeTool ? `Active tool: ${item.activeTool}` : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
   return (
-    <Tooltip {...controlled}>
-      <TooltipTrigger asChild>
-        <button
-          ref={ref}
-          type="button"
-          data-toolbar-item={item.id}
-          disabled={item.disabled}
-          aria-pressed={item.pressed}
-          aria-expanded={item.expanded}
-          aria-controls={item.controls}
-          data-attention={item.attention ? true : undefined}
-          // The dot is visual; its meaning reaches assistive tech as a description
-          // (the accessible name stays the visible label).
-          aria-description={item.attention ? ATTENTION_DESCRIPTION : undefined}
-          className={cn(base, item.holdsActive && 'text-primary', className)}
-          onFocus={(e) => {
-            onFocus?.(e);
-            suppressPointerFocusTooltip(e);
-          }}
-          {...props}
-        >
-          <Icon aria-hidden="true" strokeWidth={1.75} className="size-6 max-[899px]:size-5" />
-          <span className="flex items-center gap-0.5 text-[12px] leading-none font-medium whitespace-nowrap max-[899px]:sr-only">
-            {item.label}
-            {item.kind === 'menu' && (
-              <ChevronDown aria-hidden="true" strokeWidth={2.25} className="size-3" />
+    <>
+      <Tooltip {...controlled}>
+        <TooltipTrigger asChild>
+          <button
+            ref={ref}
+            type="button"
+            data-toolbar-item={item.id}
+            disabled={item.disabled}
+            aria-pressed={item.pressed}
+            aria-expanded={item.expanded}
+            aria-controls={item.controls}
+            aria-describedby={description ? descriptionId : undefined}
+            data-attention={item.attention ? true : undefined}
+            className={cn(base, item.activeTool && 'text-primary', className)}
+            onFocus={(e) => {
+              onFocus?.(e);
+              suppressPointerFocusTooltip(e);
+            }}
+            {...props}
+          >
+            <Icon aria-hidden="true" strokeWidth={1.75} className="size-6 max-[899px]:size-5" />
+            <span className="flex items-center gap-0.5 text-[12px] leading-none font-medium whitespace-nowrap max-[899px]:sr-only">
+              {item.label}
+              {item.kind === 'menu' && (
+                <ChevronDown aria-hidden="true" strokeWidth={2.25} className="size-3" />
+              )}
+            </span>
+            {item.attention && (
+              <span
+                aria-hidden="true"
+                className="absolute top-1.5 right-2 size-2 rounded-full bg-warning ring-2 ring-black"
+              />
             )}
-          </span>
-          {item.attention && (
-            <span
-              aria-hidden="true"
-              className="absolute top-1.5 right-2 size-2 rounded-full bg-warning ring-2 ring-black"
-            />
-          )}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{item.tooltip}</TooltipContent>
-    </Tooltip>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{item.tooltip}</TooltipContent>
+      </Tooltip>
+      {description && (
+        <span id={descriptionId} hidden>
+          {description}
+        </span>
+      )}
+    </>
   );
 });

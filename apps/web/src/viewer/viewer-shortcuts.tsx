@@ -14,15 +14,17 @@ export const VIEWER_SHORTCUTS: ReadonlyArray<readonly [keys: string, action: str
   ['I', 'Invert'],
   ['0', 'Fit / Reset'],
   ['Arrows', 'Pan'],
+  ['Delete / Backspace', 'Delete the selected measurement'],
+  ['Esc', 'Cancel the measurement being drawn'],
 ];
 
 export const ARIA_KEYSHORTCUTS =
-  'L W P Z + = - < , > . R Shift+R H V I 0 ArrowUp ArrowDown ArrowLeft ArrowRight';
+  'L W P Z + = - < , > . R Shift+R H V I 0 ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape';
 
 export const SHORTCUTS_DESCRIPTION_ID = 'viewer-shortcuts-description';
 
 const GESTURES =
-  'Drag uses the active tool (window/level by default). Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
+  'Drag uses the active tool (window/level by default; Length, Angle, Ellipse and Rectangle draw measurements). Pressing on a measurement selects it with any tool. Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
 
 /** Visually hidden description the viewport points at with aria-describedby. */
 export function ShortcutsDescription() {

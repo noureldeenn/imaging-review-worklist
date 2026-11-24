@@ -110,6 +110,23 @@ describe('measurement tools in the viewer', () => {
     expect(list()).toEqual([]);
   });
 
+  it.each(['pointercancel', 'lostpointercapture'])(
+    '%s mid-drawing cancels the drawing',
+    async (type) => {
+      const hook = await mountReady('study-A');
+      act(() => hook.result.current.setTool('rectangle'));
+      pointer('pointerdown', 20, 20);
+      pointer('pointermove', 80, 80);
+      flushFrames();
+      expect(draft()).not.toBeNull();
+      pointer(type, 80, 80);
+      flushFrames();
+      expect(draft()).toBeNull();
+      pointer('pointerup', 80, 80);
+      expect(list()).toEqual([]);
+    },
+  );
+
   it('a study switch cancels the drawing; each study keeps its own measurements', async () => {
     const hook = await mountReady('study-A');
     act(() => hook.result.current.setTool('length'));

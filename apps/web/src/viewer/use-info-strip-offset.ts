@@ -16,7 +16,9 @@ export function useInfoStripOffset(strip: RefObject<HTMLElement | null>): void {
     const el = strip.current;
     const frame = el?.closest<HTMLElement>(`[${VIEWER_FRAME_ATTR}]`);
     if (!el || !frame) return undefined;
-    const publish = () => frame.style.setProperty(INFO_STRIP_VAR, `${el.offsetHeight}px`);
+    // Fractional height, so the surfaces end exactly at the strip's top edge.
+    const publish = () =>
+      frame.style.setProperty(INFO_STRIP_VAR, `${el.getBoundingClientRect().height}px`);
     publish();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publish);
     observer?.observe(el);

@@ -76,6 +76,14 @@ describe('StudyViewer controls', () => {
     expect(viewport).toHaveAttribute('tabindex', '0');
     expect(viewport).toHaveAttribute('aria-keyshortcuts');
     expect(viewport).toHaveAccessibleDescription(/Shift\+R: Rotate left/);
+    // Measurement keys match the README table.
+    expect(viewport).toHaveAccessibleDescription(
+      /Delete \/ Backspace: Delete the selected measurement/,
+    );
+    expect(viewport).toHaveAccessibleDescription(/Esc: Cancel the measurement being drawn/);
+    expect(viewport.getAttribute('aria-keyshortcuts')?.split(' ')).toEqual(
+      expect.arrayContaining(['Delete', 'Backspace', 'Escape']),
+    );
     expect(viewport).toBeEmptyDOMElement();
   });
 });

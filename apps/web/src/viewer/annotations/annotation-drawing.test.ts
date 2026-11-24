@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createAnnotationDrawing, type AnnotationDrawing } from './annotation-drawing';
 import type { ImageMapper } from './annotation-geometry';
-import { resetAnnotations, useAnnotationStore } from './annotation-store';
+import {
+  LIMIT_NOTICE,
+  MAX_ANNOTATIONS,
+  resetAnnotations,
+  useAnnotationStore,
+} from './annotation-store';
 import type { Point } from './measure-math';
 
 // Fake viewport mapping: canvas = image * 2 + 10 (zoomed and panned).
@@ -127,6 +132,37 @@ describe('annotation drawing: create', () => {
     ]);
   });
 
+  it('angle: dragging the first arm shows a preview from the press point', () => {
+    down([10, 0], 'angle');
+    move([4, 2]);
+    flushFrames();
+    expect(store().draft).toMatchObject({
+      kind: 'angle',
+      points: [
+        [10, 0],
+        [4, 2],
+      ],
+    });
+  });
+
+  it('the 101st shape is refused with a notice, not silently', () => {
+    for (let i = 0; i < MAX_ANNOTATIONS; i += 1) {
+      store().add('A', {
+        kind: 'length',
+        points: [
+          [0, i],
+          [1, i],
+        ],
+        spacing: null,
+      });
+    }
+    expect(store().notice).toBeNull();
+    down([10, 200]);
+    up([60, 200]);
+    expect(list()).toHaveLength(MAX_ANNOTATIONS);
+    expect(store().notice).toMatchObject({ studyId: 'A', text: LIMIT_NOTICE });
+  });
+
   it('a slightly moving click still counts as a click for the angle', () => {
     down([10, 0], 'angle');
     d.pointerUp(1, [canvas([10, 0])[0] + 2, canvas([10, 0])[1]]);
@@ -232,6 +268,21 @@ describe('annotation drawing: select, adjust, delete', () => {
     expect(list()[0]?.points).toEqual([
       [10, 10],
       [60, 30],
+    ]);
+  });
+
+  it('dispose during a handle drag restores the original points', () => {
+    down([30, 10]);
+    up([30, 10]);
+    down([50, 10]);
+    move([80, 70]);
+    flushFrames();
+    expect(list()[0]?.points[1]).toEqual([80, 70]);
+    d.dispose();
+    flushFrames();
+    expect(list()[0]?.points).toEqual([
+      [10, 10],
+      [50, 10],
     ]);
   });
 

@@ -72,8 +72,11 @@ export type ToolbarItem = {
   expanded?: boolean;
   controls?: string;
   attention?: boolean;
-  /** A menu whose items include the active tool (below 900px): tinted like an active tool. */
-  holdsActive?: boolean;
+  /**
+   * Label of the active tool when it sits inside this menu (below 900px): the
+   * button is tinted like an active tool and described as `Active tool: X`.
+   */
+  activeTool?: string;
   items?: ToolbarItem[];
 };
 
