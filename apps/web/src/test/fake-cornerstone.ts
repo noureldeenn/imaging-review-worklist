@@ -11,7 +11,23 @@ export const fake = {
   calls: [] as Call[],
   callsAfterDestroy: 0,
   frames: [] as Array<() => void>,
+  /** Photometric interpretation the fake metadata reports (null: no pixel module). */
+  photometric: null as string | null,
 };
+
+/** Viewports of the fake engines, by engine index (for camera assertions). */
+export const fakeViewports: Array<{ getCamera(): { focalPoint: number[] } }> = [];
+
+/** Clears every log and setting between tests. */
+export function resetFake(): void {
+  fake.engines.length = 0;
+  fake.stacks.length = 0;
+  fake.calls.length = 0;
+  fake.frames.length = 0;
+  fake.callsAfterDestroy = 0;
+  fake.photometric = null;
+  fakeViewports.length = 0;
+}
 
 type P3 = [number, number, number];
 export class RenderingEngine {
@@ -60,10 +76,21 @@ export class RenderingEngine {
         log('setZoom', [z]);
         s.scale = z;
       },
-      getCamera: () => ({ focalPoint: s.focal, position: [0, 0, 0] }),
+      // As on the CPU path, the focal point is the world point at the canvas centre;
+      // `s.focal` is the world point at the canvas origin.
+      getCamera: () => {
+        const [cx, cy] = this.centre();
+        return {
+          focalPoint: [cx / s.scale + s.focal[0], cy / s.scale + s.focal[1], 0],
+          position: [0, 0, 0],
+        };
+      },
       setCamera: (c: { focalPoint?: P3 }) => {
         log('setCamera', [c]);
-        if (c.focalPoint) s.focal = c.focalPoint;
+        if (c.focalPoint) {
+          const [cx, cy] = this.centre();
+          s.focal = [c.focalPoint[0] - cx / s.scale, c.focalPoint[1] - cy / s.scale, 0];
+        }
       },
       canvasToWorld: ([x, y]: [number, number]) => [
         x / s.scale + s.focal[0],
@@ -72,17 +99,41 @@ export class RenderingEngine {
       ],
       setViewPresentation: (p: { rotation?: number }) => log('setViewPresentation', [p]),
     };
+    fakeViewports.push(this.viewport as unknown as (typeof fakeViewports)[number]);
   }
-  enableElement() {}
+  // Like the real engine, enabling an element adds one (counted) listener to it.
+  private element: HTMLElement | null = null;
+  private centre(): [number, number] {
+    return [(this.element?.clientWidth ?? 0) / 2, (this.element?.clientHeight ?? 0) / 2];
+  }
+  private readonly onWheel = () => undefined;
+  enableElement({ element }: { element: HTMLElement }) {
+    this.element = element;
+    element.addEventListener('wheel', this.onWheel);
+  }
   getViewport() {
     return this.viewport;
   }
-  resize() {}
+  // keepCamera=false refits like the real CPU path: zoom to fit, pan to centre.
+  resize(_immediate?: boolean, keepCamera?: boolean) {
+    fake.calls.push({ engine: this.n, name: 'resize', args: [keepCamera] });
+    if (!keepCamera) {
+      this.state.scale = 2;
+      this.state.focal = [0, 0, 0];
+    }
+  }
   destroy() {
     this.destroyed = true;
+    this.element?.removeEventListener('wheel', this.onWheel);
+    this.element = null;
   }
 }
 
 export const Enums = { ViewportType: { STACK: 'stack' } };
 export const cache = { removeImageLoadObject: () => undefined };
-export const metaData = { get: () => undefined };
+export const metaData = {
+  get: (type: string) =>
+    type === 'imagePixelModule' && fake.photometric !== null
+      ? { photometricInterpretation: fake.photometric }
+      : undefined,
+};

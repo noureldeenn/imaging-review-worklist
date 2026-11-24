@@ -59,3 +59,18 @@ export function windowLevelFromDrag(
 ): WindowLevel {
   return clampWindowLevel(start.ww + dx * sensitivity, start.wl + dy * sensitivity);
 }
+
+export type Size = { width: number; height: number };
+
+/**
+ * Whether a container resize should refit zoom and pan. Changes of 8 px or
+ * less, and width-only changes of up to 20 px (a classic scrollbar appearing
+ * or disappearing), keep the current camera.
+ */
+export function shouldRefitOnResize(previous: Size, next: Size): boolean {
+  const dw = Math.abs(next.width - previous.width);
+  const dh = Math.abs(next.height - previous.height);
+  if (dw <= 8 && dh <= 8) return false;
+  if (dh === 0 && dw <= 20) return false;
+  return true;
+}

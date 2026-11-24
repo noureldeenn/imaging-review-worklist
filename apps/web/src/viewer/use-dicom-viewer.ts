@@ -1,6 +1,7 @@
 import { Enums, RenderingEngine, cache, type Types } from '@cornerstonejs/core';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { initCornerstone } from './cornerstone-init';
+import { shouldRefitOnResize, type Size } from './viewer-math';
 import { useViewportInteractions } from './use-viewport-interactions';
 import { instrumentElement, trackEngine, trackObserver, viewerStats } from './viewer-stats';
 import {
@@ -16,6 +17,7 @@ import {
   INIT_ERROR,
   VIEWPORT_ID,
   imageIdFor,
+  readBaselineInvert,
   readMetadata,
   type StackViewportLike,
   type ViewerMetadataValue,
@@ -122,12 +124,24 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       owned.viewport = viewport;
 
       let loaded = false;
+      // Size the image was last fitted to. Comparing against it (not the previous
+      // callback) lets a change that arrives in small steps still refit.
+      let fitted: Size = { width: el.clientWidth, height: el.clientHeight };
+      let previous = fitted;
       const observer = new ResizeObserver(() => {
-        // keepCamera=false: the image is refitted to the new size; the
-        // controller then re-applies flips and reports zoom back at 100 %.
+        const next: Size = { width: el.clientWidth, height: el.clientHeight };
+        // Real size changes refit the image; small ones such as a scrollbar
+        // toggling keep the user's zoom and pan. Rotation, flips, invert and
+        // window/level survive both.
+        const refit = !loaded || shouldRefitOnResize(fitted, next);
+        if (refit) fitted = next;
+        // Always the refit path: 5.19.4's CPU keepCamera resize draws a blank
+        // canvas, so a small resize restores zoom and centre itself.
+        const centre = refit ? null : (owned.controller?.captureCentre(previous) ?? null);
+        previous = next;
         engine.resize(true, false);
         if (!loaded) return;
-        owned.controller?.afterResize();
+        owned.controller?.afterResize(refit, centre);
         viewport.render();
       });
       observer.observe(el);
@@ -152,6 +166,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       const metadata = readMetadata(imageId);
       const controller = createViewportController(viewport, {
         tool: toolRef.current,
+        baselineInvert: readBaselineInvert(imageId),
         onChange: ({ view, windowLevel }: ControllerSnapshot) => {
           if (seq !== loadSeq.current) return;
           toolRef.current = view.tool;

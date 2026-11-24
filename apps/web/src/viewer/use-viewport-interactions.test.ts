@@ -1,133 +1,75 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { fake } from '../test/fake-cornerstone';
-import { useDicomViewer } from './use-dicom-viewer';
-import { INTERACTION_LISTENERS } from './use-viewport-interactions';
-import { DEFAULT_VIEW } from './viewport-controller';
-import { viewerStats } from './viewer-stats';
+import {
+  callsNamed,
+  container,
+  flushFrames,
+  installViewerHarness,
+  key,
+  mountReady,
+  mountViewer,
+  pointer,
+  resolveStack,
+  wheel,
+} from '../test/viewer-harness';
+import { INTERACTION_LISTENERS, bindViewportInteractions } from './use-viewport-interactions';
+import type { ViewportController } from './viewport-controller';
+import { instrumentElement, viewerStats } from './viewer-stats';
 
-// Same approach as use-dicom-viewer.test.ts, with a fake viewport that also
-// implements the camera API (see ../test/fake-cornerstone.ts).
+// Listener lifecycle of the viewport interactions. The fake engine adds one
+// listener of its own when it enables the element (ENGINE below).
 vi.mock('./cornerstone-init', () => ({ initCornerstone: () => Promise.resolve() }));
 vi.mock('@cornerstonejs/core', () => import('../test/fake-cornerstone'));
 
-class FakeResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+installViewerHarness();
+
+const ENGINE = 1;
+const listeners = () => viewerStats.elementListeners;
+
+function fakeController(): ViewportController {
+  return {
+    tool: () => 'pan',
+    windowLevel: () => ({ ww: 400, wl: 200 }),
+    setTool: vi.fn(),
+    zoomBy: vi.fn(),
+    panBy: vi.fn(),
+    rotateBy: vi.fn(),
+    flip: vi.fn(),
+    toggleInvert: vi.fn(),
+    setWindowLevel: vi.fn(),
+    dragWindowLevel: vi.fn(),
+    reset: vi.fn(),
+    captureCentre: () => null,
+    afterResize: vi.fn(),
+    dispose: vi.fn(),
+  };
 }
 
-let container: HTMLDivElement;
-
-function mountViewer(initial: string | null) {
-  return renderHook(
-    ({ id }: { id: string | null }) => {
-      const v = useDicomViewer(id);
-      v.containerRef.current = container;
-      return v;
-    },
-    { initialProps: { id: initial } },
-  );
-}
-
-async function resolveStack(study: string) {
-  await waitFor(() => expect(fake.stacks.find((s) => s.imageId.includes(study))).toBeDefined());
-  const s = fake.stacks.find((x) => x.imageId.includes(study));
-  if (!s) throw new Error('no stack');
-  return s;
-}
-
-async function mountReady(study = 'study-A') {
-  const hook = mountViewer(study);
-  const s = await resolveStack(study);
-  await act(async () => s.d.resolve('ok'));
-  await waitFor(() => expect(hook.result.current.state).toBe('ready'));
-  return hook;
-}
-
-function pointer(type: string, x: number, y: number, init: { id?: number; button?: number } = {}) {
-  const e = new MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: x,
-    clientY: y,
-    button: init.button ?? 0,
-  });
-  Object.defineProperty(e, 'pointerId', { value: init.id ?? 1 });
-  Object.defineProperty(e, 'pointerType', { value: 'mouse' });
-  act(() => {
-    container.dispatchEvent(e);
-  });
-  return e;
-}
-
-function key(k: string, shiftKey = false) {
-  const e = new KeyboardEvent('keydown', { key: k, shiftKey, bubbles: true, cancelable: true });
-  act(() => {
-    container.dispatchEvent(e);
-  });
-  return e;
-}
-
-function wheel(deltaY: number) {
-  const e = new WheelEvent('wheel', { deltaY, clientX: 10, clientY: 10, cancelable: true });
-  act(() => {
-    container.dispatchEvent(e);
-  });
-  return e;
-}
-
-function flushFrames() {
-  act(() => {
-    const queued = fake.frames.splice(0);
-    queued.forEach((cb) => cb());
-  });
-}
-
-const callsNamed = (name: string, engine?: number) =>
-  fake.calls.filter((c) => c.name === name && (engine === undefined || c.engine === engine));
-
-beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', FakeResizeObserver);
-  vi.stubGlobal('requestAnimationFrame', (cb: () => void) => fake.frames.push(cb));
-  vi.stubGlobal('cancelAnimationFrame', (h: number) => {
-    fake.frames[h - 1] = () => undefined;
-  });
-  fake.engines.length = 0;
-  fake.stacks.length = 0;
-  fake.calls.length = 0;
-  fake.frames.length = 0;
-  fake.callsAfterDestroy = 0;
-  Object.assign(viewerStats, { engines: 0, observers: 0, elementListeners: 0 });
-  container = document.createElement('div');
-  document.body.appendChild(container);
-});
-
-afterEach(() => {
-  container.remove();
-  vi.unstubAllGlobals();
-});
-
-describe('viewport interactions', () => {
-  it('attach only once the load is ready and are all removed on unmount', async () => {
+describe('viewport interaction lifecycle', () => {
+  it('binds only once the load is ready and unbinds everything on unmount', async () => {
+    // Count from the start, so a bind before the load is ready would show up.
+    instrumentElement(container());
     const hook = mountViewer('study-A');
     const s = await resolveStack('study-A');
-    const loading = viewerStats.elementListeners;
+    // While loading only the engine's own listener exists (no interactions yet).
+    expect(listeners()).toBe(ENGINE);
     wheel(-100);
     expect(callsNamed('setZoom')).toHaveLength(0);
 
     await act(async () => s.d.resolve('ok'));
     await waitFor(() => expect(hook.result.current.state).toBe('ready'));
-    expect(viewerStats.elementListeners).toBe(loading + INTERACTION_LISTENERS);
+    expect(listeners()).toBe(ENGINE + INTERACTION_LISTENERS);
 
     hook.unmount();
-    expect(viewerStats.elementListeners).toBe(loading);
+    expect(listeners()).toBe(0);
   });
 
-  it('pointer and wheel events after unmount reach nothing', async () => {
+  it('pointer, wheel and key events after unmount reach nothing', async () => {
     const { unmount } = await mountReady();
     pointer('pointerdown', 10, 10);
     unmount();
+    expect(listeners()).toBe(0);
     const before = fake.calls.length;
     pointer('pointermove', 50, 50);
     wheel(-100);
@@ -137,6 +79,50 @@ describe('viewport interactions', () => {
     expect(fake.callsAfterDestroy).toBe(0);
   });
 
+  it('while bound, a null controller turns every event into a no-op', () => {
+    const el = container();
+    instrumentElement(el);
+    const c = fakeController();
+    let current: ViewportController | null = c;
+    const unbind = bindViewportInteractions(el, () => current);
+    expect(listeners()).toBe(INTERACTION_LISTENERS);
+
+    pointer('pointerdown', 0, 0);
+    current = null;
+    pointer('pointermove', 40, 0);
+    expect(wheel(-100).defaultPrevented).toBe(false);
+    expect(key('r').defaultPrevented).toBe(false);
+    expect(c.panBy).not.toHaveBeenCalled();
+    expect(c.zoomBy).not.toHaveBeenCalled();
+    expect(c.rotateBy).not.toHaveBeenCalled();
+
+    unbind();
+    expect(listeners()).toBe(0);
+  });
+
+  it('releases captured pointers on unbind and forgets a pointer whose capture was lost', () => {
+    const el = container();
+    const captured = new Set<number>();
+    el.setPointerCapture = (id: number) => void captured.add(id);
+    el.hasPointerCapture = (id: number) => captured.has(id);
+    el.releasePointerCapture = (id: number) => void captured.delete(id);
+    const c = fakeController();
+    const unbind = bindViewportInteractions(el, () => c);
+
+    pointer('pointerdown', 0, 0, { id: 7 });
+    expect(captured.has(7)).toBe(true);
+    const lost = new MouseEvent('lostpointercapture');
+    Object.defineProperty(lost, 'pointerId', { value: 7 });
+    el.dispatchEvent(lost);
+    pointer('pointermove', 30, 0, { id: 7 });
+    expect(c.panBy).not.toHaveBeenCalled();
+
+    pointer('pointerdown', 0, 0, { id: 8 });
+    expect(captured.has(8)).toBe(true);
+    unbind();
+    expect(captured.size).toBe(0);
+  });
+
   it('a late load for A after switching to B never binds interactions to the new engine', async () => {
     const hook = mountViewer('study-A');
     const a = await resolveStack('study-A');
@@ -144,10 +130,10 @@ describe('viewport interactions', () => {
     const b = await resolveStack('study-B');
     await act(async () => b.d.resolve('ok'));
     await waitFor(() => expect(hook.result.current.state).toBe('ready'));
-    const bound = viewerStats.elementListeners;
+    expect(listeners()).toBe(ENGINE + INTERACTION_LISTENERS);
 
     await act(async () => a.d.resolve('late'));
-    expect(viewerStats.elementListeners).toBe(bound);
+    expect(listeners()).toBe(ENGINE + INTERACTION_LISTENERS);
 
     wheel(-100);
     flushFrames();
@@ -155,127 +141,32 @@ describe('viewport interactions', () => {
     expect(callsNamed('setZoom', b.engine)).toHaveLength(1);
     expect(fake.callsAfterDestroy).toBe(0);
     hook.unmount();
-    expect(viewerStats.elementListeners).toBe(0);
+    expect(listeners()).toBe(0);
   });
 
-  it('reset restores every transform and the window/level', async () => {
-    const { result } = await mountReady();
-    act(() => {
-      result.current.zoomBy(2);
-      result.current.rotateBy(90);
-      result.current.flipH();
-      result.current.flipV();
-      result.current.toggleInvert();
-      result.current.setWindowLevel(10, 20);
-    });
-    expect(result.current.view).toEqual({
-      ...DEFAULT_VIEW,
-      zoom: 2,
-      rotation: 90,
-      flipH: true,
-      flipV: true,
-      invert: true,
-    });
-    act(() => result.current.reset());
-    expect(result.current.view).toEqual(DEFAULT_VIEW);
-    expect(result.current.windowLevel).toEqual({ ww: 400, wl: 200 });
-    expect(callsNamed('setViewPresentation').at(-1)?.args).toEqual([{ rotation: 0 }]);
-    expect(callsNamed('resetCamera')).toHaveLength(1);
-    expect(callsNamed('resetProperties')).toHaveLength(1);
-    expect(callsNamed('setCamera').at(-1)?.args).toEqual([
-      { flipHorizontal: false, flipVertical: false },
-    ]);
-  });
+  it('a ready-to-ready switch unbinds A and binds B exactly once on the same element', async () => {
+    const hook = await mountReady('study-A');
+    const engineA = fake.engines.length - 1;
+    expect(listeners()).toBe(ENGINE + INTERACTION_LISTENERS);
 
-  it('keyboard: Shift+R rotates left, r right, 0 resets, i inverts', async () => {
-    const { result } = await mountReady();
-    const e = key('R', true);
-    expect(e.defaultPrevented).toBe(true);
-    expect(result.current.view.rotation).toBe(270);
-    expect(callsNamed('setViewPresentation').at(-1)?.args).toEqual([{ rotation: 270 }]);
-    key('r');
-    key('r');
-    expect(result.current.view.rotation).toBe(90);
-    key('i');
-    expect(result.current.view.invert).toBe(true);
-    key('0');
-    expect(result.current.view).toEqual(DEFAULT_VIEW);
-    expect(key('x').defaultPrevented).toBe(false);
-  });
-
-  it('arrow keys pan the camera and do not scroll the page', async () => {
-    // jsdom has no layout: give the viewport a size (pan step = 10 % of it).
-    Object.defineProperty(container, 'clientWidth', { value: 200 });
-    Object.defineProperty(container, 'clientHeight', { value: 100 });
-    await mountReady();
-    const focal = () =>
-      (callsNamed('setCamera').at(-1)?.args[0] as { focalPoint: number[] }).focalPoint;
-    const e = key('ArrowRight');
-    expect(e.defaultPrevented).toBe(true);
-    // Scale 2: the image moves 20 css px right, so the focal point moves 10 world units left.
-    expect(focal()[0]).toBeCloseTo(-10);
-    key('ArrowDown');
-    expect(focal()[1]).toBeCloseTo(-5);
-    key('ArrowLeft');
-    key('ArrowUp');
-    expect(focal()[0]).toBeCloseTo(0);
-    expect(focal()[1]).toBeCloseTo(0);
-  });
-
-  it('tool switching changes what a drag does, renders at most once per frame', async () => {
-    const { result } = await mountReady();
-    expect(result.current.view.tool).toBe('windowLevel');
-    const rendersBefore = callsNamed('render').length;
-    pointer('pointerdown', 0, 0);
-    pointer('pointermove', 10, 0);
-    pointer('pointermove', 20, 5);
-    pointer('pointerup', 20, 5);
-    expect(callsNamed('render').length).toBe(rendersBefore);
+    hook.rerender({ id: 'study-B' });
+    const b = await resolveStack('study-B');
+    expect(hook.result.current.state).toBe('loading');
+    expect(listeners()).toBe(ENGINE);
+    wheel(-100);
     flushFrames();
-    expect(callsNamed('render').length).toBe(rendersBefore + 1);
-    // Default window 400 -> 400/256 window units per dragged pixel.
-    expect(result.current.windowLevel).toEqual({ ww: 431, wl: 208 });
+    expect(callsNamed('setZoom')).toHaveLength(0);
 
-    key('p');
-    expect(result.current.view.tool).toBe('pan');
-    const camerasBefore = callsNamed('setCamera').length;
-    pointer('pointerdown', 0, 0);
-    pointer('pointermove', 30, 0);
-    pointer('pointerup', 30, 0);
+    await act(async () => b.d.resolve('ok'));
+    await waitFor(() => expect(hook.result.current.state).toBe('ready'));
+    expect(listeners()).toBe(ENGINE + INTERACTION_LISTENERS);
+    wheel(-100);
     flushFrames();
-    expect(result.current.windowLevel).toEqual({ ww: 431, wl: 208 });
-    const pan = callsNamed('setCamera').slice(camerasBefore);
-    expect(pan).toHaveLength(1);
-    // Scale 2: dragging 30 css px right moves the focal point 15 world units left.
-    expect((pan[0]?.args[0] as { focalPoint: number[] }).focalPoint[0]).toBeCloseTo(-15);
+    expect(callsNamed('setZoom', engineA)).toHaveLength(0);
+    expect(callsNamed('setZoom', b.engine)).toHaveLength(1);
 
-    act(() => result.current.setTool('zoom'));
-    pointer('pointerdown', 0, 0);
-    pointer('pointermove', 0, -50);
-    flushFrames();
-    expect(result.current.view.zoom).toBeGreaterThan(1);
-  });
-
-  it('wheel zoom prevents page scroll and is clamped to 2000%', async () => {
-    const { result } = await mountReady();
-    const e = wheel(-100);
-    expect(e.defaultPrevented).toBe(true);
-    for (let i = 0; i < 60; i += 1) wheel(-500);
-    flushFrames();
-    expect(result.current.view.zoom).toBe(20);
-    expect(callsNamed('setZoom').at(-1)?.args).toEqual([40]);
-  });
-
-  it('flips act on screen axes: at 90 degrees Flip horizontal mirrors the image rows', async () => {
-    const { result } = await mountReady();
-    act(() => result.current.rotateBy(90));
-    act(() => result.current.flipH());
-    // CPU flips are applied in image axes before rotation (presentation-state order).
-    expect(callsNamed('setCamera').at(-1)?.args).toEqual([
-      { flipHorizontal: false, flipVertical: true },
-    ]);
-    expect(result.current.view).toMatchObject({ rotation: 90, flipH: false, flipV: true });
-    key('v');
-    expect(result.current.view).toMatchObject({ rotation: 90, flipH: true, flipV: true });
+    hook.unmount();
+    expect(listeners()).toBe(0);
+    expect(fake.callsAfterDestroy).toBe(0);
   });
 });

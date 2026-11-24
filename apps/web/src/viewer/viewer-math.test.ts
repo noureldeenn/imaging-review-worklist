@@ -7,6 +7,7 @@ import {
   imageFlipAxis,
   normaliseRotation,
   pinchScale,
+  shouldRefitOnResize,
   wheelZoomFactor,
   windowLevelFromDrag,
   wlDragSensitivity,
@@ -50,6 +51,23 @@ describe('rotation', () => {
     expect(normaliseRotation(-450)).toBe(270);
     expect(normaliseRotation(-0)).toBe(0);
     expect(normaliseRotation(45.5)).toBe(45.5);
+  });
+});
+
+describe('resize refit threshold', () => {
+  const base = { width: 800, height: 600 };
+  it('ignores changes of 8 px or less in both dimensions', () => {
+    expect(shouldRefitOnResize(base, base)).toBe(false);
+    expect(shouldRefitOnResize(base, { width: 808, height: 592 })).toBe(false);
+  });
+  it('ignores a width-only change of up to 20 px (scrollbar toggling)', () => {
+    expect(shouldRefitOnResize(base, { width: 785, height: 600 })).toBe(false);
+    expect(shouldRefitOnResize(base, { width: 820, height: 600 })).toBe(false);
+  });
+  it('refits on larger changes or when the height also changes', () => {
+    expect(shouldRefitOnResize(base, { width: 779, height: 600 })).toBe(true);
+    expect(shouldRefitOnResize(base, { width: 785, height: 590 })).toBe(true);
+    expect(shouldRefitOnResize(base, { width: 800, height: 609 })).toBe(true);
   });
 });
 

@@ -14,7 +14,7 @@ type Drag = {
 type Pinch = { distance: number; mid: Point };
 
 /** Number of listeners `bindViewportInteractions` adds to the element. */
-export const INTERACTION_LISTENERS = 7;
+export const INTERACTION_LISTENERS = 8;
 
 const TOOL_KEYS: Record<string, ViewerTool> = { w: 'windowLevel', p: 'pan', z: 'zoom' };
 const WHEEL_LINE_PX = 16;
@@ -45,7 +45,15 @@ export function bindViewportInteractions(
     const [a, b] = [...pointers.values()];
     return a && b ? [a, b] : null;
   };
+  const release = (pointerId: number) => {
+    try {
+      if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+    } catch {
+      // Already released by the browser (or no capture support).
+    }
+  };
   const dropGesture = () => {
+    pointers.forEach((_, id) => release(id));
     pointers.clear();
     drag = null;
     pinch = null;
@@ -103,13 +111,11 @@ export function bindViewportInteractions(
     drag.last = p;
   };
 
+  // pointerup, pointercancel and lostpointercapture all end that pointer's part
+  // of the gesture; a pointer whose capture was lost must not linger in the map.
   const onPointerEnd = (e: PointerEvent) => {
     if (!pointers.delete(e.pointerId)) return;
-    try {
-      if (element.hasPointerCapture(e.pointerId)) element.releasePointerCapture(e.pointerId);
-    } catch {
-      // Capture already released by the browser.
-    }
+    release(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (drag?.id === e.pointerId || pointers.size === 0) drag = null;
   };
@@ -153,16 +159,18 @@ export function bindViewportInteractions(
   element.addEventListener('pointermove', onPointerMove);
   element.addEventListener('pointerup', onPointerEnd);
   element.addEventListener('pointercancel', onPointerEnd);
+  element.addEventListener('lostpointercapture', onPointerEnd);
   element.addEventListener('wheel', onWheel, wheelOptions);
   element.addEventListener('keydown', onKeyDown);
   element.addEventListener('contextmenu', onContextMenu);
 
   return () => {
-    dropGesture();
+    dropGesture(); // releases any captured pointers before the handlers go
     element.removeEventListener('pointerdown', onPointerDown);
     element.removeEventListener('pointermove', onPointerMove);
     element.removeEventListener('pointerup', onPointerEnd);
     element.removeEventListener('pointercancel', onPointerEnd);
+    element.removeEventListener('lostpointercapture', onPointerEnd);
     element.removeEventListener('wheel', onWheel, wheelOptions);
     element.removeEventListener('keydown', onKeyDown);
     element.removeEventListener('contextmenu', onContextMenu);

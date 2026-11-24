@@ -37,7 +37,7 @@ export function ViewerControls({ windowLevel, view, disabled, onWindowLevel, act
   const off = disabled || windowLevel === null;
   return (
     <div className="viewer-controls flex flex-col gap-2 border-b bg-card px-3 py-2 min-[900px]:gap-1.5 min-[900px]:px-2 min-[900px]:py-1.5">
-      <ViewerToolbar view={view} disabled={off} actions={actions} />
+      <ViewerToolbar view={view} disabled={disabled} actions={actions} />
       {/* Sliders: one row on desktop, stacked full-width rows below 900px. */}
       <div className="flex min-w-0 flex-col gap-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-4">
         {/* Inputs are direct children of their labels so the label text stays exact. */}

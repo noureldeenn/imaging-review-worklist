@@ -87,3 +87,14 @@ export function readMetadata(imageId: string): ViewerMetadataValue | null {
     columns: Number(pixel?.columns ?? 0),
   };
 }
+
+/**
+ * True when the file is shown inverted as loaded (MONOCHROME1). The CPU
+ * renderer applies this through its own viewport flag, which the
+ * StackViewport's `invert` property does not reflect. Technical tag only.
+ */
+export function readBaselineInvert(imageId: string): boolean {
+  const pixel = metaData.get('imagePixelModule', imageId) as
+    { photometricInterpretation?: unknown } | undefined;
+  return pixel?.photometricInterpretation === 'MONOCHROME1';
+}

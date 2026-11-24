@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { ViewerControls } from './viewer-controls';
 import { ViewerReadout } from './viewer-readout';
 import { ViewerToolbar, type ToolbarActions } from './viewer-toolbar';
 import { DEFAULT_VIEW } from './viewport-controller';
@@ -64,6 +65,25 @@ describe('ViewerToolbar', () => {
   it('disables every button while the image is not ready', () => {
     render(<ViewerToolbar view={DEFAULT_VIEW} disabled actions={actions()} />);
     for (const b of screen.getAllByRole('button')) expect(b).toBeDisabled();
+  });
+});
+
+describe('ViewerControls', () => {
+  it('without a window/level only the sliders are disabled, not the transform buttons', () => {
+    render(
+      <ViewerControls
+        windowLevel={null}
+        view={DEFAULT_VIEW}
+        disabled={false}
+        onWindowLevel={vi.fn()}
+        actions={actions()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Invert' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Fit / Reset' })).toBeEnabled();
+    expect(screen.getByLabelText('Window width')).toBeDisabled();
+    expect(screen.getByLabelText('Window level')).toBeDisabled();
   });
 });
 

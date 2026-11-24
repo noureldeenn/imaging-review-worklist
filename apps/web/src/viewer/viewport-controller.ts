@@ -39,6 +39,7 @@ export const DEFAULT_VIEW: ViewTransform = {
 
 export type ControllerSnapshot = { view: ViewTransform; windowLevel: WindowLevel | null };
 type Point = [number, number];
+type Point3 = [number, number, number];
 type Scheduler = { request(cb: () => void): number; cancel(handle: number): void };
 
 /** `frame` mutations (drags, wheel, pinch) render at most once per animation frame. */
@@ -57,14 +58,25 @@ export type ViewportController = {
   setWindowLevel(ww: number, wl: number, timing?: Timing): void;
   dragWindowLevel(start: WindowLevel, dx: number, dy: number): void;
   reset(): void;
-  /** The engine refits the camera on resize: zoom/pan return to fit, flips are re-applied. */
-  afterResize(): void;
+  /**
+   * World point at the centre of the canvas at its PREVIOUS size, read before
+   * the engine resizes (the element has already changed size by then).
+   */
+  captureCentre(previous: { width: number; height: number }): Point3 | null;
+  /**
+   * Called after the engine resized and refitted the camera. With `refit` the
+   * view stays at fit (zoom 100 %); otherwise zoom and the captured centre are
+   * restored. Flips are re-applied either way (the CPU reset clears them).
+   */
+  afterResize(refit: boolean, centre: Point3 | null): void;
   dispose(): void;
 };
 
 type Options = {
   onChange(snapshot: ControllerSnapshot): void;
   tool: ViewerTool;
+  /** As-loaded polarity (MONOCHROME1 loads inverted); `view.invert` is relative to it. */
+  baselineInvert?: boolean;
   scheduler?: Scheduler;
 };
 
@@ -81,7 +93,7 @@ const browserScheduler: Scheduler = {
  */
 export function createViewportController(
   viewport: StackViewportLike,
-  { onChange, tool, scheduler = browserScheduler }: Options,
+  { onChange, tool, baselineInvert = false, scheduler = browserScheduler }: Options,
 ): ViewportController {
   let disposed = false;
   let frame: number | null = null;
@@ -182,7 +194,7 @@ export function createViewportController(
     toggleInvert() {
       if (!live()) return;
       view = { ...view, invert: !view.invert };
-      viewport.setProperties({ invert: view.invert });
+      viewport.setProperties({ invert: baselineInvert !== view.invert });
       commit('now');
     },
     setWindowLevel: (ww, wl, timing = 'now') => setWindowLevel(ww, wl, timing),
@@ -199,17 +211,32 @@ export function createViewportController(
       viewport.resetCamera();
       viewport.setCamera({ flipHorizontal: false, flipVertical: false });
       viewport.resetProperties();
+      // resetProperties() restores the GPU-path initialInvert (false); on the CPU
+      // path a MONOCHROME1 image must go back to its as-loaded inversion.
+      viewport.setProperties({ invert: baselineInvert });
       fitScale = null;
       windowLevel = readWindowLevel(viewport);
       view = { ...DEFAULT_VIEW, tool: view.tool };
       flush();
     },
-    afterResize() {
+    captureCentre(previous) {
+      if (!live()) return null;
+      return viewport.canvasToWorld([previous.width / 2, previous.height / 2]);
+    },
+    afterResize(refit, centre) {
       if (!live()) return;
       fitScale = null;
       viewport.setCamera({ flipHorizontal: view.flipH, flipVertical: view.flipV });
-      view = { ...view, zoom: 1 };
-      publish();
+      if (refit) {
+        view = { ...view, zoom: 1 };
+        publish();
+        return;
+      }
+      fitScale = viewport.getZoom();
+      if (view.zoom !== 1) viewport.setZoom(fitScale * view.zoom);
+      const now = viewport.getCamera().focalPoint;
+      if (centre && now)
+        shiftFocalPoint(centre[0] - now[0], centre[1] - now[1], centre[2] - now[2]);
     },
     dispose() {
       disposed = true;
