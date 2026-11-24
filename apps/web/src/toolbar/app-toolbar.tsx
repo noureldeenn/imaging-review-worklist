@@ -1,9 +1,10 @@
 import type { LayoutState } from '../layout/use-layout-state';
 import { NARROW_QUERY, useMediaQuery } from '../lib/viewport';
 import { useAnnotationStore } from '../viewer/annotations/annotation-store';
+import { useSegmentStore } from '../viewer/segmentation/segment-store';
 import { useViewerBridge } from '../viewer/viewer-bridge';
 import { TOOLBAR_GROUPS, resolveToolbar } from './toolbar-config';
-import type { MeasurementsContext } from './toolbar-types';
+import type { MeasurementsContext, SegmentsContext } from './toolbar-types';
 import { Toolbar } from './toolbar';
 
 /** The current study's measurement state and actions, straight from the in-memory store. */
@@ -24,6 +25,17 @@ function useMeasurementsContext(studyId: string | null): MeasurementsContext {
   };
 }
 
+/** The current study's segment count and Clear (announced in the Segments panel). */
+function useSegmentsContext(studyId: string | null): SegmentsContext {
+  const count = useSegmentStore((s) => (studyId ? (s.byStudy[studyId]?.segments.length ?? 0) : 0));
+  return {
+    count,
+    clear: () => {
+      if (studyId) useSegmentStore.getState().clear(studyId);
+    },
+  };
+}
+
 /** The app's toolbar row: config resolved against the layout and the mounted viewer. */
 export function AppToolbar({
   layout,
@@ -37,9 +49,10 @@ export function AppToolbar({
   const view = useViewerBridge((s) => s.view);
   const narrow = useMediaQuery(NARROW_QUERY, false);
   const measurements = useMeasurementsContext(studyId);
+  const segments = useSegmentsContext(studyId);
   const groups = resolveToolbar(
     TOOLBAR_GROUPS,
-    { viewer: ready ? commands : null, view, layout, measurements },
+    { viewer: ready ? commands : null, view, layout, measurements, segments },
     { narrow },
   );
   return <Toolbar groups={groups} label="Image tools" />;

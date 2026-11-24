@@ -4,6 +4,7 @@ import { ReviewerSelect } from './components/reviewer-select';
 import { StudyPanel } from './components/study-panel';
 import { MeasurementsSection } from './layout/measurements-section';
 import { ReviewPanel } from './layout/review-panel';
+import { SegmentsSection } from './layout/segments-section';
 import { useLayoutState } from './layout/use-layout-state';
 import { WorklistDrawer } from './layout/worklist-drawer';
 import { useSessionStore } from './stores/session-store';
@@ -59,6 +60,7 @@ export function App() {
               onFeedback={layout.revealReview}
             />
             <MeasurementsSection studyId={selectedStudyId} />
+            <SegmentsSection studyId={selectedStudyId} />
           </ReviewPanel>
         )
       }

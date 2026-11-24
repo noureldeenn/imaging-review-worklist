@@ -15,6 +15,7 @@ const DESKTOP_ORDER = [
   'Angle',
   'Ellipse',
   'Rectangle',
+  'Segment',
   'Zoom in',
   'Zoom out',
   'Fit / Reset',
@@ -51,6 +52,7 @@ describe('Toolbar config', () => {
       'Panels',
       'Drag tool',
       'Measurements',
+      'Segmentation',
       'Zoom steps',
       'Reset',
       'Delete',
@@ -141,7 +143,7 @@ describe('Toolbar config', () => {
     expect(button('Review')).toHaveAttribute('aria-controls', 'review-panel');
   });
 
-  it('below 900px: seven buttons; measurements, zoom steps and Delete items move into More', async () => {
+  it('below 900px: seven buttons; measurements, Segment, zoom steps and Delete items move into More', async () => {
     const user = userEvent.setup();
     renderToolbar({}, true);
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
@@ -159,10 +161,14 @@ describe('Toolbar config', () => {
       'Angle',
       'Ellipse',
       'Rectangle',
+      'Brush (B)',
+      'Smart brush',
       'Zoom in',
       'Zoom out',
       'Delete selected',
       'Clear measurements',
+      'Eraser (E)',
+      'Clear segments',
       'Invert (I)',
       'Rotate left (<)',
       'Rotate right (>)',

@@ -4,6 +4,7 @@ import type { Spacing } from './annotations/measure-math';
 import { createSegPainting, type SegPainting } from './segmentation/seg-painting';
 import { readPixelSource, type PixelViewport } from './segmentation/seg-pixels';
 import { isSegmentationTool } from './segmentation/seg-types';
+import { useSegmentStore } from './segmentation/segment-store';
 
 /** What the viewport handlers feed: measurement drawing plus brush painting. */
 export type ViewportDrawing = AnnotationDrawing & {
@@ -57,6 +58,9 @@ export function createLoadDrawing({
   viewport,
 }: LoadDrawingOptions): ViewportDrawing {
   const imageSize = metadata ? { width: metadata.columns, height: metadata.rows } : null;
+  const ct = metadata?.modality === 'CT';
+  // The Segments panel (main bundle) shows mm² and the CT hint from this.
+  useSegmentStore.getState().setImageInfo(studyId, { spacing, ct });
   return combineDrawings(
     createAnnotationDrawing({ studyId, spacing, imageSize, mapper }),
     createSegPainting({
@@ -64,7 +68,7 @@ export function createLoadDrawing({
       imageSize,
       mapper,
       getPixels: () => readPixelSource(viewport),
-      gateMode: metadata?.modality === 'CT' ? 'hu' : 'stored',
+      gateMode: ct ? 'hu' : 'stored',
     }),
   );
 }

@@ -18,6 +18,13 @@ export type ToolbarContext = {
   layout: LayoutState & { reviewAttention: boolean };
   /** The current study's measurements (in-memory store, no Cornerstone). */
   measurements: MeasurementsContext;
+  /** The current study's segments (in-memory store, no Cornerstone). */
+  segments: SegmentsContext;
+};
+
+export type SegmentsContext = {
+  count: number;
+  clear(): void;
 };
 
 export type MeasurementsContext = {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Spacing } from '../annotations/measure-math';
 import { createMaskMemory, packDiff, restoreDiff, type MaskEntry } from './mask-memory';
 import { countLabels } from './seg-math';
 import {
@@ -29,8 +30,12 @@ export type StudySegments = {
   dropped: boolean;
 };
 
+/** What the panel needs from the loaded image (set by the lazy viewer; no Cornerstone here). */
+export type ImageInfo = { spacing: Spacing | null; ct: boolean };
+
 type SegmentState = {
   byStudy: Record<string, StudySegments>;
+  imageInfo: Record<string, ImageInfo>;
   brushSize: number;
   opacity: number;
   preset: PresetId;
@@ -63,6 +68,7 @@ type SegmentState = {
   announce(text: string): void;
   /** Shows a refusal in the study's status region. */
   notice(studyId: string, text: string): void;
+  setImageInfo(studyId: string, info: ImageInfo): void;
 };
 
 const EMPTY: StudySegments = {
@@ -171,6 +177,7 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
 
   return {
     byStudy: {},
+    imageInfo: {},
     brushSize: BRUSH_DEFAULT,
     opacity: OPACITY_DEFAULT,
     preset: 'adipose',
@@ -254,6 +261,7 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
     setCustom: (range) => set({ custom: { ...get().custom, ...range } }),
     announce: (text) => set({ announcement: { text, key: get().announcement.key + 1 } }),
     notice: refuse,
+    setImageInfo: (studyId, info) => set({ imageInfo: { ...get().imageInfo, [studyId]: info } }),
   };
 });
 

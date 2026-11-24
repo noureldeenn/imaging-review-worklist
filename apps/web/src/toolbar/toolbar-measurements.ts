@@ -1,5 +1,6 @@
 import { Circle, DraftingCompass, ListX, Ruler, Square, Trash2, X } from 'lucide-react';
 import type { MeasurementKind } from '../viewer/annotations/measure-math';
+import { CLEAR_SEGMENTS_ITEM, ERASER_ITEM } from './toolbar-segments';
 import type { ToolbarGroupSpec, ToolbarItemSpec } from './toolbar-types';
 
 function measureTool(
@@ -46,7 +47,7 @@ export const MEASURE_GROUP: ToolbarGroupSpec = {
   ],
 };
 
-/** `Delete ▾`: built from config so later tools (an Eraser) add an item here. */
+/** `Delete ▾`: measurement deletes, then the Eraser tool and Clear segments. */
 export const DELETE_GROUP: ToolbarGroupSpec = {
   id: 'delete',
   label: 'Delete',
@@ -54,7 +55,7 @@ export const DELETE_GROUP: ToolbarGroupSpec = {
     {
       id: 'delete',
       label: 'Delete',
-      tooltip: 'Delete measurements',
+      tooltip: 'Delete measurements and segments',
       icon: X,
       kind: 'menu',
       narrow: 'menu',
@@ -77,6 +78,8 @@ export const DELETE_GROUP: ToolbarGroupSpec = {
           run: (ctx) => ctx.measurements.clear(),
           isEnabled: (ctx) => ctx.viewer !== null && ctx.measurements.count > 0,
         },
+        ERASER_ITEM,
+        CLEAR_SEGMENTS_ITEM,
       ],
     },
   ],

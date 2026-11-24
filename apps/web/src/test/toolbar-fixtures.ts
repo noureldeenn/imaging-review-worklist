@@ -46,12 +46,19 @@ export function measurementsStub(
   return { count: 0, hasSelection: false, deleteSelected: vi.fn(), clear: vi.fn(), ...overrides };
 }
 
+export function segmentsStub(
+  overrides: Partial<ToolbarContext['segments']> = {},
+): ToolbarContext['segments'] {
+  return { count: 0, clear: vi.fn(), ...overrides };
+}
+
 export function groupsFor(ctx: Partial<ToolbarContext> = {}, narrow = false) {
   const full: ToolbarContext = {
     viewer: commandsMock(),
     view: IDLE_VIEW,
     layout: layoutStub(),
     measurements: measurementsStub(),
+    segments: segmentsStub(),
     ...ctx,
   };
   return resolveToolbar(TOOLBAR_GROUPS, full, { narrow });

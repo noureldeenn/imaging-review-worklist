@@ -17,6 +17,7 @@ import {
 import { REVIEW_PANEL_ID, WORKLIST_DRAWER_ID } from '../layout/use-layout-state';
 import type { ViewerTool } from '../viewer/viewport-controller';
 import { DELETE_GROUP, MEASURE_GROUP } from './toolbar-measurements';
+import { SEGMENT_GROUP } from './toolbar-segments';
 import type {
   ToolbarContext,
   ToolbarGroup,
@@ -95,6 +96,7 @@ export const TOOLBAR_GROUPS: ToolbarGroupSpec[] = [
     ],
   },
   MEASURE_GROUP,
+  SEGMENT_GROUP,
   {
     id: 'zoom-steps',
     label: 'Zoom steps',
@@ -127,7 +129,7 @@ export const TOOLBAR_GROUPS: ToolbarGroupSpec[] = [
         id: 'fit-reset',
         label: 'Fit / Reset',
         tooltip:
-          'Fit the image and reset zoom, pan, rotation, flips, invert and window/level (0); measurements stay',
+          'Fit the image and reset zoom, pan, rotation, flips, invert and window/level (0); measurements and segments stay',
         icon: Maximize,
         kind: 'action',
         run: (ctx) => ctx.viewer?.reset(),
