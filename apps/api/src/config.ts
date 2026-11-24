@@ -1,13 +1,19 @@
+import path from 'node:path';
+
 export interface AppConfig {
   port: number;
   databaseUrl: string;
   webOrigin: string;
   apiDocsEnabled: boolean;
   nodeEnv: string;
+  /** Directory holding locally imported DICOM files (<uuid>.dcm). Dev only. */
+  localDicomDir: string;
 }
 
 const DEFAULT_DATABASE_URL = 'postgresql://imaging:imaging@localhost:5432/imaging';
 const DEFAULT_DATABASE_URL_TEST = 'postgresql://imaging:imaging@localhost:5432/imaging_test';
+// <repo>/local-dicom; src/ and dist/ both sit three levels below the repo root.
+const DEFAULT_LOCAL_DICOM_DIR = path.resolve(__dirname, '../../../local-dicom');
 const DEFAULT_WEB_ORIGIN = 'http://localhost:5173';
 
 export function loadConfig(): AppConfig {
@@ -25,5 +31,6 @@ export function loadConfig(): AppConfig {
     webOrigin: process.env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN,
     apiDocsEnabled: process.env.API_DOCS_ENABLED !== 'false',
     nodeEnv: process.env.NODE_ENV ?? 'development',
+    localDicomDir: path.resolve(process.env.LOCAL_DICOM_DIR ?? DEFAULT_LOCAL_DICOM_DIR),
   };
 }

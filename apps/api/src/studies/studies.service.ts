@@ -41,7 +41,14 @@ export class StudiesService {
     const row = await this.prisma.study.findUnique({ where: { id } });
     if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
     const path = resolveStudyFile(row.fileKey);
-    return { path, size: (await stat(path)).size };
+    try {
+      return { path, size: (await stat(path)).size };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
+      }
+      throw err;
+    }
   }
 
   private async assertReviewer(reviewerId: string): Promise<void> {
