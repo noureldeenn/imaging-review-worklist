@@ -7,7 +7,7 @@ Two reviewers (`reviewer-a`, `reviewer-b`) share a worklist of DICOM studies. Ea
 
 Synthetic software-testing exercise. Not for diagnostic use.
 
-> **Scope: the brief vs optional additions.** The brief's requirements (worklist and API, ownership across processes, safe UI recovery, the real viewer with its lifecycle rules) are the core and are proven by the original tests. The viewer controls, the viewer-first layout and toolbar, measurements, segmentation and the local DICOM import are optional additions requested beyond the brief (which lists measurements, uploads, 3D and multi-series as out of scope). Each viewer addition (controls, layout and toolbar, measurements, segmentation) is isolated from the graded paths and has its own lifecycle (no-leak) tests; none of them persists data or calls a new API endpoint. The local DICOM import is different: it is a dev-only command-line tool that copies files into the git-ignored `local-dicom/` folder and creates studies in your development database. The one API addition is the regex-gated `local:<uuid>` file-key resolver, used only by that import.
+> **Scope: the brief vs optional additions.** The brief's requirements (worklist and API, ownership across processes, safe UI recovery, the real viewer with its lifecycle rules) are the core and are proven by the original tests. The viewer controls, the viewer-first layout and toolbar, measurements, segmentation and the local DICOM import are optional additions requested beyond the brief (which lists measurements, uploads, 3D and multi-series as out of scope). Each viewer addition (controls, layout and toolbar, measurements, segmentation) is isolated from the graded paths and has its own lifecycle (no-leak) tests; none of them persists data or calls a new API endpoint. The upload and the local DICOM import are different: it is a dev-only command-line tool that copies files into the git-ignored `local-dicom/` folder and creates studies in your development database. The API additions are `POST /api/studies/upload` (the worklist's **Upload study** button, requested beyond the brief) and the regex-gated `local:<uuid>` file-key resolver used by both. The upload takes a raw `application/dicom` body (415 for any other type, so browsers must preflight it), validates it as a single-frame monochrome DICOM image with a supported transfer syntax and modality, caps it at 64 MB, and stores it as `<uuid>.dcm` under `LOCAL_DICOM_DIR`; the client never names a path.
 
 ## Quick start
 
@@ -87,7 +87,7 @@ The seeded studies (created by `db:migrate` if absent; the dates are 1 minute ap
 
 Other behaviour worth knowing:
 
-- **No upload button.** The brief excludes uploads, and the file endpoint resolves only a fixed server-side map from study to fixture file (ADR 0004), plus server-generated `local:<uuid>` keys (regex-checked, resolved inside `LOCAL_DICOM_DIR`) written by the dev-only local import. There is no way for a client to name a path.
+- **Upload is an optional addition.** The brief excludes uploads; the **Upload study** button and `POST /api/studies/upload` were added at the user's request. There is no authentication, no per-caller quota and no virus scanning, so it is for a local or trusted demo only. The file endpoint still resolves only a fixed server-side map from study to fixture file (ADR 0004), plus server-generated `local:<uuid>` keys (regex-checked, resolved inside `LOCAL_DICOM_DIR`) written by the dev-only local import. There is no way for a client to name a path.
 - **Completed is terminal.** One owner, one note. A second reviewer (or the owner again) cannot claim or complete it: the API answers `409 INVALID_STATE`, and the UI shows the saved note instead of a form.
 - **Close viewer** (in the Review panel header) clears the selection, disposes the viewer and reopens the worklist drawer.
 - **Feedback is never hidden.** If the Review panel is collapsed when a Claim or Complete finishes or a `412` arrives, it opens again so the message and **Refresh and continue** are visible; a stale study also puts a dot on the Review button.
@@ -288,7 +288,7 @@ The viewer-first layout, measurements and segmentation changes each re-ran lint,
 
 ## Browsing your own DICOM files (local only)
 
-A dev-only CLI imports a sample of your own DICOM files into the **development** database so you can browse them in the viewer. It is not an upload feature: the API still takes only a study id, and the brief's upload exclusion still holds.
+A dev-only CLI imports a sample of your own DICOM files into the **development** database so you can browse them in the viewer. It is separate from the **Upload study** button, which sends one file at a time through the API.
 
 ```bash
 npm run db:up && npm run db:migrate
@@ -375,7 +375,7 @@ docs/
 
 ## Known limitations
 
-- Imported studies (`npm run import:dicom`) are local-only and git-ignored; the brief's upload exclusion still holds.
+- Imported studies (`npm run import:dicom`) and uploaded files are local-only and git-ignored.
 - The window width and level sliders use fixed 16-bit ranges, so they are coarse for a 16-bit image; the keyboard arrow keys give precise steps.
 - Measurements live in memory only (cleared on reload) and drawing them needs a pointer; the Review panel's list is the keyboard path.
 - Segments live in memory only (64 MB across studies, least recently used dropped first) and painting needs a pointer; the Segments panel is the keyboard path. Smart brush ranges are indicative, not diagnostic.
