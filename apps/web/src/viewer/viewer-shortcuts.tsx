@@ -5,6 +5,8 @@ export const VIEWER_SHORTCUTS: ReadonlyArray<readonly [keys: string, action: str
   ['L / W', 'Levels tool (window/level)'],
   ['P', 'Pan tool'],
   ['Z', 'Zoom tool'],
+  ['B', 'Brush tool (segmentation)'],
+  ['E', 'Eraser tool (segmentation)'],
   ['+ / =', 'Zoom in'],
   ['-', 'Zoom out'],
   ['< / , / Shift+R', 'Rotate left'],
@@ -15,16 +17,17 @@ export const VIEWER_SHORTCUTS: ReadonlyArray<readonly [keys: string, action: str
   ['0', 'Fit / Reset'],
   ['Arrows', 'Pan'],
   ['Delete / Backspace', 'Delete the selected measurement'],
-  ['Esc', 'Cancel the measurement being drawn'],
+  ['Esc', 'Cancel the measurement or brush stroke in progress'],
+  ['Ctrl+Z / Cmd+Z', 'Undo the last brush or eraser stroke'],
 ];
 
 export const ARIA_KEYSHORTCUTS =
-  'L W P Z + = - < , > . R Shift+R H V I 0 ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape';
+  'L W P Z B E + = - < , > . R Shift+R H V I 0 ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape Control+Z Meta+Z';
 
 export const SHORTCUTS_DESCRIPTION_ID = 'viewer-shortcuts-description';
 
 const GESTURES =
-  'Drag uses the active tool (window/level by default; Length, Angle, Ellipse and Rectangle draw measurements). Pressing on a measurement selects it with any tool. Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
+  'Drag uses the active tool (window/level by default; Length, Angle, Ellipse and Rectangle draw measurements; Brush, Smart brush and Eraser paint segments). Pressing on a measurement selects it with any tool. Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
 
 /** Visually hidden description the viewport points at with aria-describedby. */
 export function ShortcutsDescription() {

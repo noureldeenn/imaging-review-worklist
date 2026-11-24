@@ -13,6 +13,11 @@ export const fake = {
   frames: [] as Array<() => void>,
   /** Photometric interpretation the fake metadata reports (null: no pixel module). */
   photometric: null as string | null,
+  /** Image size (and modality) the fake metadata reports; null: none. */
+  size: null as { rows: number; columns: number; modality?: string } | null,
+  /** What `getCornerstoneImage()` returns (smart brush pixel data). */
+  image: undefined as
+    { getPixelData(): ArrayLike<number>; slope: number; intercept: number } | undefined,
 };
 
 /** Viewports of the fake engines, by engine index (for camera assertions). */
@@ -26,6 +31,8 @@ export function resetFake(): void {
   fake.frames.length = 0;
   fake.callsAfterDestroy = 0;
   fake.photometric = null;
+  fake.size = null;
+  fake.image = undefined;
   fakeViewports.length = 0;
 }
 
@@ -105,6 +112,7 @@ export class RenderingEngine {
         direction: [1, 0, 0, 0, 1, 0, 0, 0, 1],
       }),
       setViewPresentation: (p: { rotation?: number }) => log('setViewPresentation', [p]),
+      getCornerstoneImage: () => fake.image,
     };
     fakeViewports.push(this.viewport as unknown as (typeof fakeViewports)[number]);
   }
@@ -139,8 +147,14 @@ export class RenderingEngine {
 export const Enums = { ViewportType: { STACK: 'stack' } };
 export const cache = { removeImageLoadObject: () => undefined };
 export const metaData = {
-  get: (type: string) =>
-    type === 'imagePixelModule' && fake.photometric !== null
-      ? { photometricInterpretation: fake.photometric }
-      : undefined,
+  get: (type: string) => {
+    if (type === 'generalSeriesModule' && fake.size?.modality)
+      return { modality: fake.size.modality };
+    if (type !== 'imagePixelModule' || (fake.photometric === null && fake.size === null))
+      return undefined;
+    return {
+      ...(fake.photometric === null ? {} : { photometricInterpretation: fake.photometric }),
+      ...(fake.size ? { rows: fake.size.rows, columns: fake.size.columns } : {}),
+    };
+  },
 };

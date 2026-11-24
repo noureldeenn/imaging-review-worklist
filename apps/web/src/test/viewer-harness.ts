@@ -100,9 +100,15 @@ export function pointer(
   return dispatch(e);
 }
 
-export function key(k: string, shiftKey = false) {
+export function key(
+  k: string,
+  shiftKey = false,
+  mods: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {},
+  target?: EventTarget,
+) {
   return dispatch(
-    new KeyboardEvent('keydown', { key: k, shiftKey, bubbles: true, cancelable: true }),
+    new KeyboardEvent('keydown', { key: k, shiftKey, ...mods, bubbles: true, cancelable: true }),
+    target,
   );
 }
 

@@ -80,9 +80,15 @@ describe('StudyViewer controls', () => {
     expect(viewport).toHaveAccessibleDescription(
       /Delete \/ Backspace: Delete the selected measurement/,
     );
-    expect(viewport).toHaveAccessibleDescription(/Esc: Cancel the measurement being drawn/);
+    expect(viewport).toHaveAccessibleDescription(
+      /Esc: Cancel the measurement or brush stroke in progress/,
+    );
+    // Segmentation keys too.
+    expect(viewport).toHaveAccessibleDescription(/B: Brush tool/);
+    expect(viewport).toHaveAccessibleDescription(/E: Eraser tool/);
+    expect(viewport).toHaveAccessibleDescription(/Ctrl\+Z \/ Cmd\+Z: Undo the last brush/);
     expect(viewport.getAttribute('aria-keyshortcuts')?.split(' ')).toEqual(
-      expect.arrayContaining(['Delete', 'Backspace', 'Escape']),
+      expect.arrayContaining(['Delete', 'Backspace', 'Escape', 'B', 'E', 'Control+Z', 'Meta+Z']),
     );
     expect(viewport).toBeEmptyDOMElement();
   });

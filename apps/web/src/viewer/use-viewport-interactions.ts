@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import { PAN_KEY_FRACTION, ZOOM_STEP, pinchScale, wheelZoomFactor } from './viewer-math';
-import type { AnnotationDrawing } from './annotations/annotation-drawing';
+import type { ViewportDrawing } from './load-drawing';
 import type { ViewerTool, ViewportController } from './viewport-controller';
 import type { WindowLevel } from './viewer-session';
 
@@ -16,17 +16,19 @@ type Pinch = { distance: number; mid: Point };
 
 /**
  * Number of listeners `bindViewportInteractions` adds to the element. The
- * measurement tools add none: their pointer and key events are routed through
- * these same eight handlers (see `getDrawing`).
+ * measurement and segmentation tools add none: their pointer and key events
+ * are routed through these same eight handlers (see `getDrawing`).
  */
 export const INTERACTION_LISTENERS = 8;
 
-// OHIF keys (l, p, z); `w` is kept as an alias of `l` from the first toolbar.
+// OHIF keys (l, p, z, b, e); `w` is kept as an alias of `l` from the first toolbar.
 const TOOL_KEYS: Record<string, ViewerTool> = {
   l: 'windowLevel',
   w: 'windowLevel',
   p: 'pan',
   z: 'zoom',
+  b: 'brush',
+  e: 'eraser',
 };
 const WHEEL_LINE_PX = 16;
 
@@ -43,7 +45,7 @@ const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]
 export function bindViewportInteractions(
   element: HTMLElement,
   getController: () => ViewportController | null,
-  getDrawing: () => AnnotationDrawing | null = () => null,
+  getDrawing: () => ViewportDrawing | null = () => null,
 ): () => void {
   const pointers = new Map<number, Point>();
   let drag: Drag | null = null;
@@ -169,9 +171,15 @@ export function bindViewportInteractions(
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
     const c = getController();
-    if (!c) return;
+    if (!c || e.altKey) return;
+    // Ctrl/Cmd+Z: undo the last brush stroke (or drop the one in progress).
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      getDrawing()?.undo?.();
+      e.preventDefault();
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) return;
     // Escape cancels a drawing; Delete/Backspace remove the selected measurement.
     if (getDrawing()?.keyDown(e.key)) {
       e.preventDefault();
@@ -234,8 +242,8 @@ type InteractionOptions = {
   session: number;
   /** Returns null once the load is superseded or the viewer is closed. */
   getController(): ViewportController | null;
-  /** The measurement drawing of the same load (null with it). */
-  getDrawing?(): AnnotationDrawing | null;
+  /** The measurement/segmentation drawing of the same load (null with it). */
+  getDrawing?(): ViewportDrawing | null;
 };
 
 /**

@@ -1,6 +1,6 @@
 import { cache, type RenderingEngine } from '@cornerstonejs/core';
-import type { AnnotationDrawing } from './annotations/annotation-drawing';
 import type { ImageMapper } from './annotations/annotation-geometry';
+import type { ViewportDrawing } from './load-drawing';
 import { trackEngine, trackObserver, viewerStats } from './viewer-stats';
 import type { StackViewportLike } from './viewer-session';
 import type { ViewportController } from './viewport-controller';
@@ -11,7 +11,7 @@ export type OwnedLoad = {
   observer: ResizeObserver | null;
   viewport: StackViewportLike | null;
   controller: ViewportController | null;
-  drawing: AnnotationDrawing | null;
+  drawing: ViewportDrawing | null;
   mapper: ImageMapper | null;
 };
 
@@ -26,8 +26,8 @@ export const emptyLoad = (): OwnedLoad => ({
 
 /**
  * Releases one load (study change, close or unmount): the controller and the
- * measurement drawing go first (late events become no-ops and an in-progress
- * drawing is dropped), then the observer, the engine and the cached image.
+ * measurement/segmentation drawing go first (late events become no-ops and an
+ * in-progress shape or brush stroke is dropped), then the observer, the engine and the cached image.
  */
 export function releaseLoad(owned: OwnedLoad, imageId: string): void {
   owned.controller?.dispose();

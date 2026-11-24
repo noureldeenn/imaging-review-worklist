@@ -1,6 +1,7 @@
 import { metaData } from '@cornerstonejs/core';
 import type { MappableViewport } from './annotations/image-mapper';
 import type { Spacing } from './annotations/measure-math';
+import type { PixelViewport } from './segmentation/seg-pixels';
 
 export type ViewerState = 'idle' | 'loading' | 'ready' | 'error';
 export type ViewerMetadataValue = {
@@ -41,7 +42,8 @@ export type StackViewportLike = {
   }): void;
   canvasToWorld(canvasPos: [number, number]): Point3;
   setViewPresentation(presentation: { rotation?: number }): void;
-} & MappableViewport;
+} & MappableViewport &
+  PixelViewport;
 
 export function imageIdFor(studyId: string): string {
   return `wadouri:/api/studies/${encodeURIComponent(studyId)}/file`;

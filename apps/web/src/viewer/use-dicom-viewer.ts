@@ -1,9 +1,9 @@
 import { Enums, RenderingEngine, type Types } from '@cornerstonejs/core';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { createAnnotationDrawing, type AnnotationDrawing } from './annotations/annotation-drawing';
 import type { ImageMapper } from './annotations/annotation-geometry';
 import { createImageMapper } from './annotations/image-mapper';
 import { initCornerstone } from './cornerstone-init';
+import { createLoadDrawing, type ViewportDrawing } from './load-drawing';
 import { shouldRefitOnResize, type Size } from './viewer-math';
 import { useViewportInteractions } from './use-viewport-interactions';
 import { instrumentElement, trackEngine, trackObserver, viewerStats } from './viewer-stats';
@@ -55,7 +55,7 @@ let engineCount = 0;
 export type DicomViewer = Omit<ViewState, 'session'> & {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   setWindowLevel(ww: number, wl: number): void;
-  /** Restores zoom, pan, rotation, flips, invert and window/level (not measurements). */
+  /** Restores zoom, pan, rotation, flips, invert and window/level (not measurements or segments). */
   resetView(): void;
   reset(): void;
   zoomBy(factor: number): void;
@@ -73,7 +73,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
   const loadSeq = useRef(0);
   const disposed = useRef(false);
   const controllerRef = useRef<ViewportController | null>(null);
-  const drawingRef = useRef<AnnotationDrawing | null>(null);
+  const drawingRef = useRef<ViewportDrawing | null>(null);
   const mapperRef = useRef<ImageMapper | null>(null);
   // The active tool survives study changes; everything else resets per image.
   const toolRef = useRef<ViewerTool>(DEFAULT_VIEW.tool);
@@ -193,11 +193,13 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       owned.controller = controller;
       owned.mapper = mapper;
       if (mapper) {
-        owned.drawing = createAnnotationDrawing({
+        // Measurements and segmentation, fed by the same eight handlers.
+        owned.drawing = createLoadDrawing({
           studyId,
-          spacing: readPixelSpacing(imageId),
-          imageSize: metadata ? { width: metadata.columns, height: metadata.rows } : null,
           mapper,
+          spacing: readPixelSpacing(imageId),
+          metadata,
+          viewport,
         });
       }
       controllerRef.current = controller;
@@ -255,7 +257,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
   const setTool = useCallback(
     (tool: ViewerTool) => {
       toolRef.current = tool;
-      // Switching tools mid-drawing drops the unfinished shape.
+      // Switching tools mid-drawing drops the unfinished shape or brush stroke.
       getDrawing()?.cancel();
       const c = getController();
       if (c) c.setTool(tool);

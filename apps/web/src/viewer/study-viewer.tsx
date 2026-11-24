@@ -2,6 +2,8 @@ import { ImageOff, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { AnnotationOverlay } from './annotations/annotation-overlay';
 import { MeasurementNotice } from './annotations/measurement-notice';
+import { isSegmentationTool } from './segmentation/seg-types';
+import { SegmentationOverlay } from './segmentation/segmentation-overlay';
 import { useDicomViewer } from './use-dicom-viewer';
 import { useInfoStripOffset } from './use-info-strip-offset';
 import { useViewerBridge, type ViewerCommands } from './viewer-bridge';
@@ -26,6 +28,7 @@ export function StudyViewer({ studyId }: { studyId: string }) {
   const { containerRef, state, error, metadata, windowLevel, view } = viewer;
   const { setTool, zoomBy, rotateBy, flipH, flipV, toggleInvert, reset } = viewer;
   const ready = state === 'ready';
+  const painting = isSegmentationTool(view.tool);
   const stripRef = useRef<HTMLDivElement>(null);
   useInfoStripOffset(stripRef);
 
@@ -58,7 +61,7 @@ export function StudyViewer({ studyId }: { studyId: string }) {
         {/* Cornerstone owns this element's children (its canvas); React renders none. */}
         <div
           ref={containerRef}
-          className="viewport absolute inset-0 touch-none overflow-hidden bg-viewer outline-none select-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+          className={`viewport absolute inset-0 touch-none overflow-hidden bg-viewer outline-none select-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset${painting ? ' cursor-crosshair' : ''}`}
           data-testid="viewport"
           role="img"
           aria-label={`DICOM image for ${studyId}`}
@@ -66,6 +69,15 @@ export function StudyViewer({ studyId }: { studyId: string }) {
           aria-keyshortcuts={ARIA_KEYSHORTCUTS}
           tabIndex={0}
         />
+        {ready && metadata && metadata.columns > 0 && metadata.rows > 0 && (
+          <SegmentationOverlay
+            key={studyId}
+            studyId={studyId}
+            revision={view}
+            getMapper={viewer.getMapper}
+            imageSize={{ width: metadata.columns, height: metadata.rows }}
+          />
+        )}
         {ready && (
           <AnnotationOverlay studyId={studyId} revision={view} getMapper={viewer.getMapper} />
         )}

@@ -1,4 +1,5 @@
 import type { MeasurementKind } from './annotations/measure-math';
+import type { SegmentationTool } from './segmentation/seg-types';
 import {
   clampZoom,
   imageFlipAxis,
@@ -14,8 +15,8 @@ import {
   type WindowLevel,
 } from './viewer-session';
 
-/** Exclusive drag tools: navigation tools plus the measurement tools. */
-export type ViewerTool = 'windowLevel' | 'pan' | 'zoom' | MeasurementKind;
+/** Exclusive drag tools: navigation, measurement and segmentation tools. */
+export type ViewerTool = 'windowLevel' | 'pan' | 'zoom' | MeasurementKind | SegmentationTool;
 
 /**
  * Display transform of the current image. Zoom is relative to fit (1 = 100 %);
