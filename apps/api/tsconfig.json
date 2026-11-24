@@ -6,7 +6,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "../..",
     "types": ["node"]
   },
   "include": ["src", "prisma", "test", "vitest.config.ts"]

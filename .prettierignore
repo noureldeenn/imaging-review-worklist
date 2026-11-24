@@ -6,3 +6,4 @@ fixtures
 playwright-report
 test-results
 *.dcm
+local-dicom/

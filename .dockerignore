@@ -10,3 +10,4 @@
 **/.env
 docs
 docker
+local-dicom/

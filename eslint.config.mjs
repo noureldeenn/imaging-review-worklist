@@ -11,6 +11,7 @@ export default tseslint.config(
       '**/playwright-report/**',
       '**/test-results/**',
       '.superpowers/**',
+      'local-dicom/**',
     ],
   },
   js.configs.recommended,
