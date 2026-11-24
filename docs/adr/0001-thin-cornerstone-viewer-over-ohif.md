@@ -32,5 +32,15 @@ and is loaded lazily so the worklist does not pay for it up front.
 - The metadata whitelist and lifecycle guarantees are enforced and tested in our own code.
 - Scope stays small; there is no measurement, 3D or multi-series code to maintain.
 - We maintain the glue (init, session guard, controls) ourselves.
+- The OHIF-style controls (window/level, pan and zoom drag tools, wheel and pinch zoom,
+  rotation, flips, invert, keyboard shortcuts) are our own pointer, wheel and keyboard
+  handlers over the Cornerstone camera and property API (`setZoom`, `setCamera`,
+  `setViewPresentation`, `setProperties`, `resetCamera`, `resetProperties`).
+  `@cornerstonejs/tools` is deliberately not used: our handlers are bound only once the
+  current load is ready, removed on study change and close, and counted by the same
+  `window.__viewerStats` instrumentation, so the listener lifecycle stays observable and
+  tested. Under CPU rendering in 5.19.4, rotation must go through `setViewPresentation`
+  because the CPU `setCamera` path ignores it, and flips are mirrored in image axes before
+  rotation, so the buttons map screen flips onto image axes.
 - If a full diagnostic viewer is later required, the iframe plus DICOMweb pattern is the
   preferred route, and it would sit beside this viewer rather than replace it.
