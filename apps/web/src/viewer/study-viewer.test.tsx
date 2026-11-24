@@ -83,6 +83,10 @@ describe('StudyViewer controls', () => {
     expect(viewport).toHaveAccessibleDescription(
       /Esc: Cancel the measurement or brush stroke in progress/,
     );
+    // Selection is for the navigation and measurement tools; the brushes paint over shapes.
+    expect(viewport).toHaveAccessibleDescription(
+      /selects it with the navigation and measurement tools; Brush, Smart brush and Eraser paint over measurements/,
+    );
     // Segmentation keys too.
     expect(viewport).toHaveAccessibleDescription(/B: Brush tool/);
     expect(viewport).toHaveAccessibleDescription(/E: Eraser tool/);

@@ -235,7 +235,7 @@ describe('annotation drawing: select, adjust, delete', () => {
   });
   const id = () => list()[0]?.id ?? '';
 
-  it('pressing on the line selects it with any tool (no new shape)', () => {
+  it('pressing on the line selects it with any navigation or measurement tool (no new shape)', () => {
     expect(down([30, 11], 'pan')).toBe(true);
     up([30, 11]);
     expect(store().selectedIn('A')).toBe(id());

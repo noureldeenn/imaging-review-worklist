@@ -27,7 +27,7 @@ export const ARIA_KEYSHORTCUTS =
 export const SHORTCUTS_DESCRIPTION_ID = 'viewer-shortcuts-description';
 
 const GESTURES =
-  'Drag uses the active tool (window/level by default; Length, Angle, Ellipse and Rectangle draw measurements; Brush, Smart brush and Eraser paint segments). Pressing on a measurement selects it with any tool. Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
+  'Drag uses the active tool (window/level by default; Length, Angle, Ellipse and Rectangle draw measurements; Brush, Smart brush and Eraser paint segments). Pressing on a measurement selects it with the navigation and measurement tools; Brush, Smart brush and Eraser paint over measurements instead. Mouse wheel zooms. Middle-button drag pans, right-button drag zooms. Two fingers pinch to zoom and drag to pan.';
 
 /** Visually hidden description the viewport points at with aria-describedby. */
 export function ShortcutsDescription() {
