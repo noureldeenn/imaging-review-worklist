@@ -55,6 +55,15 @@ describe('POST claim', () => {
     expect(res.body.code).toBe('VALIDATION_ERROR');
   });
 
+  it('400 VALIDATION_ERROR for expectedVersion -1 and 0, study untouched', async () => {
+    for (const bad of [-1, 0]) {
+      const res = await claim('study-001', 'reviewer-a', bad);
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    }
+    expect(await row('study-001')).toMatchObject({ status: 'Unassigned', version: 1 });
+  });
+
   it('400 VALIDATION_ERROR for unknown reviewerId, study untouched', async () => {
     const res = await claim('study-001', 'ghost', 1);
     expect(res.status).toBe(400);
@@ -151,6 +160,22 @@ describe('POST complete', () => {
     expect(res.status).toBe(412);
     expect(res.body.code).toBe('STALE_VERSION');
     expect(res.body.current.version).toBe(1);
+    expect(await row('study-004')).toMatchObject({ status: 'InReview', version: 1 });
+  });
+
+  it('400 VALIDATION_ERROR for expectedVersion -1 and 0, study untouched', async () => {
+    for (const bad of [-1, 0]) {
+      const res = await complete('study-004', 'reviewer-a', bad, 'x');
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    }
+    expect(await row('study-004')).toMatchObject({ status: 'InReview', version: 1 });
+  });
+
+  it('stale version from a non-owner is 412 STALE_VERSION, not 403 (version is checked before ownership)', async () => {
+    const res = await complete('study-004', 'reviewer-b', 7, 'x');
+    expect(res.status).toBe(412);
+    expect(res.body.code).toBe('STALE_VERSION');
     expect(await row('study-004')).toMatchObject({ status: 'InReview', version: 1 });
   });
 

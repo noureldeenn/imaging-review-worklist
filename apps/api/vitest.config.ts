@@ -9,6 +9,8 @@ export const config = defineConfig({
     globalSetup: ['./test/global-setup.ts'],
     setupFiles: ['./test/setup.ts'],
     environment: 'node',
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });
 

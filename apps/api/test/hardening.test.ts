@@ -92,3 +92,28 @@ describe('API hardening - configuration and failure paths', () => {
     }
   });
 });
+
+describe('error envelope for unrouted and rejected requests', () => {
+  it('GET /api/nope is 404 NOT_FOUND, not STUDY_NOT_FOUND', async () => {
+    const res = await request(app.getHttpServer()).get('/api/nope');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ code: 'NOT_FOUND', message: 'Not found' });
+  });
+
+  it('an unknown study says the same fixed message on read and mutation paths', async () => {
+    const read = await request(app.getHttpServer()).get('/api/studies/ghost-1');
+    const mutate = await request(app.getHttpServer())
+      .post('/api/studies/ghost-1/claim')
+      .send({ reviewerId: 'reviewer-a', expectedVersion: 1 });
+    expect(read.body).toEqual({ code: 'STUDY_NOT_FOUND', message: 'Study not found' });
+    expect(mutate.body).toEqual({ code: 'STUDY_NOT_FOUND', message: 'Study not found' });
+  });
+
+  it('other framework 4xx (413 oversized body) use REQUEST_REJECTED without the framework message', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/studies/study-001/claim')
+      .send({ reviewerId: 'x'.repeat(200_000), expectedVersion: 1 });
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({ code: 'REQUEST_REJECTED', message: 'Request rejected' });
+  });
+});

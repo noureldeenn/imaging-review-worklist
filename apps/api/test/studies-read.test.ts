@@ -76,6 +76,9 @@ describe('GET /api/studies', () => {
     });
     const res = await get('/api/studies');
     expect(res.body).toHaveLength(100);
+    // Same createdAt, so the id tie-break decides which 100 rows survive the cap.
+    expect(res.body[0].id).toBe('bulk-000');
+    expect(res.body[99].id).toBe('bulk-099');
   });
 });
 
