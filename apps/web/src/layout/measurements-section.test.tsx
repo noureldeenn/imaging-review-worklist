@@ -117,6 +117,53 @@ describe('MeasurementsSection', () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
+  /** Counts DOM mutations inside the announcer (a repeat must still change the DOM). */
+  function watchAnnouncer() {
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((r) => records.push(...r));
+    observer.observe(announcer(), { childList: true, subtree: true, characterData: true });
+    return {
+      count: () => {
+        records.push(...observer.takeRecords());
+        return records.length;
+      },
+      stop: () => observer.disconnect(),
+    };
+  }
+
+  it('re-announces an identical delete message (a fresh DOM change each time)', async () => {
+    const user = userEvent.setup();
+    add('A', LENGTH_50, LENGTH_50);
+    render(<MeasurementsSection studyId="A" />);
+    const watch = watchAnnouncer();
+
+    await user.click(screen.getByRole('button', { name: 'Delete Length 1, 50 px' }));
+    expect(announcer()).toHaveTextContent('Length 1, 50 px deleted');
+    const afterFirst = watch.count();
+    expect(afterFirst).toBeGreaterThan(0);
+
+    // The remaining shape is renumbered to the same name: same text, announced again.
+    await user.click(screen.getByRole('button', { name: 'Delete Length 1, 50 px' }));
+    expect(announcer()).toHaveTextContent('Length 1, 50 px deleted');
+    expect(watch.count()).toBeGreaterThan(afterFirst);
+    watch.stop();
+  });
+
+  it('re-announces "Measurements cleared" after a draw in between', async () => {
+    const user = userEvent.setup();
+    add('A', LENGTH_50);
+    render(<MeasurementsSection studyId="A" />);
+    const watch = watchAnnouncer();
+    await user.click(screen.getByRole('button', { name: 'Clear measurements' }));
+    const afterFirst = watch.count();
+    expect(afterFirst).toBeGreaterThan(0);
+    add('A', ANGLE_90);
+    await user.click(screen.getByRole('button', { name: 'Clear measurements' }));
+    expect(announcer()).toHaveTextContent('Measurements cleared');
+    expect(watch.count()).toBeGreaterThan(afterFirst);
+    watch.stop();
+  });
+
   it('the limit message lives in an always-mounted status region', () => {
     render(<MeasurementsSection studyId="A" />);
     const limit = screen.getByTestId('measurements-limit');

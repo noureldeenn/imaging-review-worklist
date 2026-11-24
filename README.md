@@ -234,7 +234,7 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 | `npm run lint`            | clean                                                                                                                                                |
 | `npm run typecheck`       | clean                                                                                                                                                |
 | `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 49 tests in 8 files, web 162 tests in 24 files (211 total)                                                                                 |
+| `npm run verify`          | pass: API 49 tests in 8 files, web 164 tests in 24 files (213 total)                                                                                 |
 | `npm run build`           | pass; entry 15.2 kB + vendor 114.6 kB gzip, lazy viewer chunk 10.7 kB and Cornerstone (928 kB gzip) loaded lazily                                    |
 | `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
 | `npm run test:e2e`        | 34 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 8 the layout, 7 the measurements)                           |

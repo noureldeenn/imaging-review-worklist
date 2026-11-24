@@ -28,7 +28,10 @@ export function MeasurementsSection({ studyId }: { studyId: string }) {
   const store = useAnnotationStore.getState;
   const count = annotations.length;
   const names = numberedNames(annotations);
-  const [announcement, setAnnouncement] = useState('');
+  // Every announcement gets a new key, so even an identical message replaces the
+  // node inside the live region and is read again.
+  const [announcement, setAnnouncementState] = useState({ text: '', key: 0 });
+  const setAnnouncement = (text: string) => setAnnouncementState((a) => ({ text, key: a.key + 1 }));
   const focusTarget = useRef<FocusTarget>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const items = useRef(new Map<string, HTMLButtonElement>());
@@ -123,7 +126,7 @@ export function MeasurementsSection({ studyId }: { studyId: string }) {
         {count >= MAX_ANNOTATIONS ? LIMIT_NOTICE : ''}
       </p>
       <p data-testid="measurements-announcer" role="status" className="sr-only">
-        {announcement}
+        <span key={announcement.key}>{announcement.text}</span>
       </p>
       <p className="text-xs text-muted-foreground">
         Kept in memory for this session only (cleared on reload). Fit / Reset keeps them.
