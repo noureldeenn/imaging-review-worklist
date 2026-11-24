@@ -30,7 +30,8 @@ and is loaded lazily so the worklist does not pay for it up front.
 ## Consequences
 
 - The metadata whitelist and lifecycle guarantees are enforced and tested in our own code.
-- Scope stays small; there is no measurement, 3D or multi-series code to maintain.
+- Scope stays small; there is no 3D or multi-series code to maintain. (Measurements were
+  later added on request as a small first-party extra; see ADR 0005.)
 - We maintain the glue (init, session guard, controls) ourselves.
 - The OHIF-style controls (window/level, pan and zoom drag tools, wheel and pinch zoom,
   rotation, flips, invert, keyboard shortcuts) are our own pointer, wheel and keyboard

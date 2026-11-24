@@ -97,7 +97,7 @@ Other behaviour worth knowing:
 ![Review bottom sheet at 390px](docs/screenshots/05-review-sheet-390.png)
 ![Stale-version notice](docs/screenshots/06-stale-412-1440.png)
 
-One toolbar row in the OHIF style: icon above a short label with the shortcut in it, the active tool in teal, groups separated by thin rules, and a **More** menu for the rest. Left to right: `Worklist`, `Review` | `Levels (L)`, `Pan (P)`, `Zoom (Z)` (one active tool) | `Zoom in`, `Zoom out` | `Fit / Reset` | `More` (`Invert (I)`, `Rotate left (<)`, `Rotate right (>)`, `Flip horizontal (H)`, `Flip vertical (V)`). Below 900px the row is seven 44px icon buttons (Worklist, Review, Levels, Pan, Zoom, Fit / Reset, More) and Zoom in / Zoom out move into More. Every button has a tooltip with its name and shortcut. The toolbar is one tab stop (Left/Right, Home/End move inside it) and the More menu follows the WAI-ARIA menu-button pattern (Up/Down, Home/End, Esc). It is built from a config array in `apps/web/src/toolbar/toolbar-config.ts`. The required Fit / Reset button and the Window width / Window level sliders stay; the sliders live in the info strip under the image.
+One toolbar row in the OHIF style: icon above a short label with the shortcut in it, the active tool in teal, groups separated by thin rules, and a **More** menu for the rest. Left to right: `Worklist`, `Review` | `Levels (L)`, `Pan (P)`, `Zoom (Z)` | `Length`, `Angle`, `Ellipse`, `Rectangle` (these seven are one exclusive tool choice) | `Zoom in`, `Zoom out` | `Fit / Reset` | `Delete ▾` (`Delete selected`, `Clear measurements`) | `More` (`Invert (I)`, `Rotate left (<)`, `Rotate right (>)`, `Flip horizontal (H)`, `Flip vertical (V)`). Below 900px the row is seven 44px icon buttons (Worklist, Review, Levels, Pan, Zoom, Fit / Reset, More); the four measurement tools, Zoom in / Zoom out and the two Delete items move into More (the tools as radio items). Every button has a tooltip with its name and shortcut. The toolbar is one tab stop (Left/Right, Home/End move inside it) and the More menu follows the WAI-ARIA menu-button pattern (Up/Down, Home/End, Esc). It is built from a config array in `apps/web/src/toolbar/toolbar-config.ts`. The required Fit / Reset button and the Window width / Window level sliders stay; the sliders live in the info strip under the image.
 
 | Control          | Toolbar                                      | Key (viewport focused)          | Notes                                                                                                                         |
 | ---------------- | -------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -109,11 +109,28 @@ One toolbar row in the OHIF style: icon above a short label with the shortcut in
 | Flip             | More: Flip horizontal (H), Flip vertical (V) | `H`, `V`                        | Flips what is on screen, also after a rotation                                                                                |
 | Invert           | More: Invert (I), a checkbox item            | `I`                             | Greyscale inversion relative to the image as loaded; MONOCHROME1 files load with the correct polarity and Reset returns to it |
 | Pan by keyboard  |                                              | Arrow keys                      | 10% of the viewport per press; the page does not scroll                                                                       |
-| Fit / Reset      | Fit / Reset                                  | `0`                             | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool)                                          |
+| Fit / Reset      | Fit / Reset                                  | `0`                             | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool, not the measurements)                    |
+| Measurements     | Length, Angle, Ellipse, Rectangle, tools     | none (pointer-only drawing)     | See [Measurements](#measurements); in More below 900px                                                                        |
+| Delete selected  | Delete ▾: Delete selected                    | `Delete` or `Backspace`         | Removes the selected measurement                                                                                              |
+| Cancel drawing   |                                              | `Esc`                           | Drops a measurement that is being drawn (or an endpoint drag)                                                                 |
+| Clear            | Delete ▾: Clear measurements                 |                                 | Removes every measurement of the open study; also in the Review panel                                                         |
 
 Always on: the mouse wheel zooms about the cursor, middle-button drag pans and right-button drag zooms. On touch, one finger uses the active tool and two fingers pinch to zoom and drag to pan. Click or tab to the image to use the keys; a **Shortcuts** disclosure in the info strip lists them (desktop), and screen readers get the same list through the viewport's description. The info strip under the image (never over it) shows the file metadata line, a readout such as `Zoom 150% · Rot 90°` with `Inverted` and `Mirrored` badges, and the two sliders. `Mirrored` appears when the image shows exactly one flip (two flips are a half turn, not a mirror image). A real container resize (more than 8 px, or a width-only change of more than 20 px, measured from the size the image was last fitted to) refits zoom and pan; smaller changes such as a scrollbar appearing keep the zoom and the point at the centre. Rotation, flips, invert and window/level are kept either way.
 
-Not part of this version: measurements and annotations, segmentation, 3D/MPR, cine and multi-series navigation (measurements and segmentation are planned as later tasks). The controls are our own pointer, wheel and keyboard handlers over the Cornerstone camera API, not `@cornerstonejs/tools` ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)). Their listeners are bound only once the current image has loaded and are counted in `window.__viewerStats`.
+The brief puts measurements out of scope; they were added later on request as an optional, isolated extra (below). Still not part of this version: segmentation, 3D/MPR, cine and multi-series navigation. The controls are our own pointer, wheel and keyboard handlers over the Cornerstone camera API, not `@cornerstonejs/tools` ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)). Their listeners are bound only once the current image has loaded and are counted in `window.__viewerStats`.
+
+### Measurements
+
+![Length, angle, ellipse and rectangle on the gradient study, with the Measurements list](docs/screenshots/07-measurements-1440.png)
+![The measurement tools inside More at 390px](docs/screenshots/08-measurements-390.png)
+
+- **Tools.** `Length`: press, drag, release between two points. `Angle`: click three points, the second is the vertex (a rubber band follows the pointer; a first press that drags draws the first arm). `Ellipse` and `Rectangle`: press, drag, release across the bounding box. A press that moves less than 4 px draws nothing. `Esc` cancels a shape in progress; a second finger, a tool change, a study switch or closing the viewer cancels it too.
+- **Labels.** Next to each shape, white on a dark halo so they read on black and white: Length `12.3 mm`, Angle `67.2°` (0-180°, `—` when an arm has no length), Ellipse and Rectangle as area `1,234 mm²` (π·a·b and w·h). Millimetres come from the file's Pixel Spacing (0028,0030), row and column spacing applied separately; without it (the synthetic studies) values are in image pixels (`45 px`, `px²`). No patient tag is read; the metadata strip is unchanged.
+- **Selecting and editing.** Pressing on a shape's outline selects it with any tool (cyan, larger handles); dragging a handle of the selected shape moves that end (a rectangle corner, an ellipse axis end); `Delete`/`Backspace` on the focused image or `Delete ▾ > Delete selected` removes it.
+- **Attached to the image.** Points are stored in image pixel coordinates and re-projected after every zoom, pan, rotation, flip and resize, so a shape stays on the same pixels (the e2e test checks the grey level under each end). Wheel zoom, middle-drag pan and two-finger pinch keep working while a measurement tool is active.
+- **Per study, in memory.** Each study has its own list (A → B → A shows A's again), up to 100 per study. Nothing is persisted: not to the server, not to localStorage; a reload clears them. `Fit / Reset` restores the view only; `Clear measurements` removes the shapes.
+- **Accessible path.** Drawing is pointer-only, as in OHIF. The Review panel's **Measurements** section lists the open study's shapes (`Length 12.3 mm`), selects one on the image when chosen, and has a `Delete Length 12.3 mm` button per item plus `Clear measurements`; all of it works by keyboard and screen reader. The SVG overlay itself is `aria-hidden` and takes no pointer events (selection is hit-tested by geometry in the viewport's own handlers).
+- **Limits.** No persistence or export, no text annotations, no ROI statistics (mean/SD), no calibration of images without Pixel Spacing. See [ADR 0005](docs/adr/0005-first-party-measurement-overlay.md).
 
 ## Architecture
 
@@ -139,6 +156,7 @@ Architecture decision records:
 - [ADR 0002: Database compare-and-swap for ownership](docs/adr/0002-database-compare-and-swap-for-ownership.md)
 - [ADR 0003: CPU rendering for deterministic tests](docs/adr/0003-cpu-rendering-for-deterministic-tests.md)
 - [ADR 0004: Fixed file map instead of uploads](docs/adr/0004-fixed-file-map-instead-of-uploads.md)
+- [ADR 0005: First-party measurement overlay](docs/adr/0005-first-party-measurement-overlay.md)
 
 Component and sequence diagrams are in [docs/architecture.md](docs/architecture.md); the decisions behind them are the ADRs above.
 
@@ -204,6 +222,7 @@ Every load takes a sequence token; a result carrying an old token (the user swit
 | 04 Switching, closing, disposal, no PHI                  | Only the current image; dispose on close; no raw tags displayed or logged              | `use-dicom-viewer.test.ts`, `apps/web/e2e/viewer-lifecycle.spec.ts`, `apps/api/test/logging.test.ts`                                                                          |
 | 05 Lifecycle: five close/reopen cycles                   | No handler or engine accumulation                                                      | `use-dicom-viewer.test.ts`, `viewer-lifecycle.spec.ts` (`window.__viewerStats`)                                                                                               |
 | Extra: viewer controls (zoom, pan, rotate, flip, invert) | Each control changes real pixels, undo and Fit / Reset restore them; no listener leaks | `apps/web/e2e/viewer-controls.spec.ts`, `use-viewport-interactions.test.ts`, `viewer-math.test.ts`, `toolbar.test.tsx`, `viewer-info-strip.test.tsx`, `study-viewer.test.tsx` |
+| Extra: measurements (beyond the brief, on request)       | Values in px/mm, glued to image pixels, per-study, list path; no listener leaks        | `apps/web/e2e/measurements.spec.ts`, `annotations/*.test.ts(x)`, `measurement-interactions.test.ts`, `measurements-section.test.tsx`, `toolbar-measurements.test.tsx`         |
 | 05 README, migrations, seed, ordinary startup keeps data | Setup/start/reset/test commands; idempotent seed                                       | This file; `apps/api/prisma/migrations`, `apps/api/test/seed.test.ts` (re-seed never overwrites)                                                                              |
 
 ## Test results
@@ -215,13 +234,13 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 | `npm run lint`            | clean                                                                                                                                                |
 | `npm run typecheck`       | clean                                                                                                                                                |
 | `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 49 tests in 8 files, web 92 tests in 15 files (141 total)                                                                                  |
-| `npm run build`           | pass; entry 12.6 kB + vendor 113.8 kB gzip, Cornerstone (928 kB gzip) loaded lazily                                                                  |
+| `npm run verify`          | pass: API 49 tests in 8 files, web 153 tests in 23 files (202 total)                                                                                 |
+| `npm run build`           | pass; entry 14.8 kB + vendor 114.6 kB gzip, lazy viewer chunk 10.5 kB and Cornerstone (928 kB gzip) loaded lazily                                    |
 | `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
-| `npm run test:e2e`        | 26 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 7 the layout)                                               |
+| `npm run test:e2e`        | 33 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 7 the layout, 7 the measurements)                           |
 | `npm run app:up` smoke    | `/api/health` 200, `/api/readyz` 200, `/docs` 200, `/api/studies/study-001/file` 200 `application/dicom`, study-001 renders at http://localhost:8080 |
 
-The viewer-first layout change re-ran lint, typecheck, format, the web tests, the web build and the e2e suite on 2026-11-24 against a local PostgreSQL 17 (Docker was unavailable on the machine that day). The API was not changed, so the API row is from the earlier run.
+The viewer-first layout change and the measurements change each re-ran lint, typecheck, format, the web tests, the web build and the e2e suite on 2026-11-24 against a local PostgreSQL 17 (Docker was unavailable on the machine that day). The API was not changed by either, so the API test count is from the earlier run.
 
 ## Design decisions and trade-offs
 
@@ -229,6 +248,7 @@ The viewer-first layout change re-ran lint, typecheck, format, the web tests, th
 - **CPU rendering.** Cornerstone runs in CPU mode so canvas pixels are deterministic and readable in headless Chromium; the e2e tests assert on real pixels. The cost is speed on large or multi-frame images, which are out of scope ([ADR 0003](docs/adr/0003-cpu-rendering-for-deterministic-tests.md)).
 - **Viewer-first layout.** The image gets the whole window; the worklist is an overlay drawer (it never resizes the viewport) and the review panel pushes only where there is room (>= 1280px). "Close" in the brief's lifecycle rules is the explicit **Close viewer** button in the Review panel header. The toolbar reaches the lazily loaded viewer through a small store (`viewer-bridge.ts`), so Cornerstone stays out of the main bundle.
 - **412 blocks both actions.** After a stale response, Claim and Complete stay disabled for that study until "Refresh and continue", so a user never submits against state they have not seen.
+- **First-party measurements.** Measurements are a small SVG overlay and a pointer state machine routed through the viewport's existing handlers, not `@cornerstonejs/tools`: no new dependency, CPU-rendering safe, and the lifecycle counters stay exact ([ADR 0005](docs/adr/0005-first-party-measurement-overlay.md)).
 - **OHIF not used.** OHIF shows patient identifiers by default and ships measurement and multi-series features that are out of scope, and its internals do not expose the listener and engine counts the lifecycle tests assert on. A thin viewer on `@cornerstonejs/core` keeps the metadata whitelist provable ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)).
 - **Unpruned API image.** The API runtime image copies the workspace `node_modules` because the seed (`tsx`) and the Prisma CLI run at container start and are dev dependencies. The image is large; acceptable for a demo.
 - **Hard-coded modality filter options.** The filter offers CT, MR, CR, US, DX, NM and OT from a constant in the web app instead of loading them from the API.
@@ -305,9 +325,10 @@ apps/
       layout/             layout state, worklist drawer, review panel, dismiss/focus hooks
       toolbar/            data-driven toolbar config, renderer (roving focus), More menu
       viewer/             Cornerstone hook, info strip, viewer bridge, error boundary, viewer stats
+        annotations/      measurement math, in-memory store, drawing state machine, image mapper, SVG overlay
       queries/ stores/    TanStack Query hooks, session and draft store
       api/                typed client and Zod schemas
-    e2e/                  Playwright specs (render, lifecycle, viewer controls, layout, review flow)
+    e2e/                  Playwright specs (render, lifecycle, viewer controls, layout, measurements, review flow)
     Dockerfile, nginx.conf
 docker/                   docker-compose.yml (postgres, plus api and web under the app profile)
 fixtures/                 gradient.dcm, checkerboard.dcm, corrupt.dcm
@@ -315,7 +336,7 @@ scripts/                  contention-smoke.ts (two-process race), import-dicom*.
 docs/
   architecture.md         component and sequence diagrams
   adr/                    architecture decision records
-  screenshots/            UI screenshots at 1440, 1024 and 390 px
+  screenshots/            UI screenshots at 1440, 1024 and 390 px (synthetic studies only)
 .github/workflows/ci.yml  lint, typecheck, tests, build
 ```
 
@@ -331,6 +352,7 @@ docs/
 
 - Imported studies (`npm run import:dicom`) are local-only and git-ignored; the brief's upload exclusion still holds.
 - The window width and level sliders use fixed 16-bit ranges, so they are coarse for a 16-bit image; the keyboard arrow keys give precise steps.
+- Measurements live in memory only (cleared on reload) and drawing them needs a pointer; the Review panel's list is the keyboard path.
 - The modality filter options are static (CT, MR, CR, US, DX, NM, OT), not loaded from the API.
 - One generic viewer failure message covers every load failure (corrupt, unsupported, network).
 - Completed is terminal with exactly one note, by design: no edit, release or reassignment.
