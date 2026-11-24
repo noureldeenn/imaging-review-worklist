@@ -103,7 +103,22 @@ export function labelFor({ kind, points, spacing }: Annotation): string {
   return formatArea(areaOf(kind, a, b, spacing));
 }
 
-/** Type and value, e.g. `Length 12.3 mm` (the Measurements list). */
+/** Type and value, e.g. `Length 12.3 mm`. */
 export function describeAnnotation(annotation: Annotation): string {
   return `${KIND_LABELS[annotation.kind]} ${labelFor(annotation)}`;
+}
+
+/**
+ * Unique list names, numbered per type in drawing order: `Length 1, 12.3 mm`,
+ * `Angle 1, 67.2°`, `Length 2, 12.3 mm` (two equal shapes never share a name).
+ */
+export function numberedNames(annotations: Annotation[]): Map<string, string> {
+  const seen: Partial<Record<MeasurementKind, number>> = {};
+  return new Map(
+    annotations.map((a) => {
+      const n = (seen[a.kind] ?? 0) + 1;
+      seen[a.kind] = n;
+      return [a.id, `${KIND_LABELS[a.kind]} ${n}, ${labelFor(a)}`];
+    }),
+  );
 }

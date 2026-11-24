@@ -3,6 +3,7 @@ import type { Annotation, MeasurementKind, Point, Spacing } from './measure-math
 
 /** Most annotations one study may hold (drawing more is refused). */
 export const MAX_ANNOTATIONS = 100;
+export const LIMIT_NOTICE = `Limit of ${MAX_ANNOTATIONS} measurements reached; delete one to draw more.`;
 
 /** The shape being drawn right now (preview only; not in any list yet). */
 export type Draft = { studyId: string; kind: MeasurementKind; points: Point[] };
@@ -13,6 +14,9 @@ type AnnotationState = {
   byStudy: Record<string, Annotation[]>;
   selected: { studyId: string; id: string } | null;
   draft: Draft | null;
+  /** Short-lived message for the user (e.g. a refused 101st shape); `at` tells repeats apart. */
+  notice: { studyId: string; text: string; at: number } | null;
+  clearNotice(at: number): void;
   list(studyId: string): Annotation[];
   selectedIn(studyId: string): string | null;
   /** Returns the new id, or null when the study already holds MAX_ANNOTATIONS. */
@@ -45,6 +49,10 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => {
     byStudy: {},
     selected: null,
     draft: null,
+    notice: null,
+    clearNotice: (at) => {
+      if (get().notice?.at === at) set({ notice: null });
+    },
     list: (studyId) => get().byStudy[studyId] ?? EMPTY,
     selectedIn: (studyId) => {
       const s = get().selected;
@@ -52,8 +60,12 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => {
     },
     add(studyId, annotation) {
       const current = get().list(studyId);
-      if (current.length >= MAX_ANNOTATIONS) return null;
       nextId += 1;
+      if (current.length >= MAX_ANNOTATIONS) {
+        // Refused, but never silently: the info strip and the list show it.
+        set({ notice: { studyId, text: LIMIT_NOTICE, at: nextId } });
+        return null;
+      }
       const id = `m${nextId}`;
       set({ byStudy: { ...get().byStudy, [studyId]: [...current, { ...annotation, id }] } });
       return id;
@@ -83,5 +95,5 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => {
 
 /** Test helper: back to an empty store. */
 export function resetAnnotations(): void {
-  useAnnotationStore.setState({ byStudy: {}, selected: null, draft: null });
+  useAnnotationStore.setState({ byStudy: {}, selected: null, draft: null, notice: null });
 }
