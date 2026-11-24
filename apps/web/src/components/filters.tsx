@@ -5,7 +5,7 @@ import { useSessionStore } from '../stores/session-store';
 import { Label } from './ui/label';
 import { NativeSelect } from './ui/native-select';
 
-const MODALITIES = ['CT', 'MR', 'CR', 'US', 'OT'];
+const MODALITIES = ['CT', 'MR', 'CR', 'US', 'DX', 'NM', 'OT'];
 
 const chevron = (
   <ChevronDown
