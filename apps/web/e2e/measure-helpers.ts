@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { toolbarButton, waitForPaint } from './helpers';
+import { METADATA_TEXT, openStudy, paintedPixels, toolbarButton, waitForPaint } from './helpers';
 
 export type Pt = { x: number; y: number };
 export type Drawn = { id: string; kind: string; label: string; selected: boolean; handles: Pt[] };
@@ -46,6 +46,26 @@ export async function pickTool(page: Page, name: string, narrow = false): Promis
   }
   await toolbarButton(page, name).click();
   await expect(toolbarButton(page, name)).toHaveAttribute('aria-pressed', 'true');
+}
+
+/** The Review panel's Measurements section. */
+export const measurements = (page: Page) => page.getByRole('region', { name: 'Measurements' });
+
+/** Opens study-001 (synthetic gradient, no Pixel Spacing) and waits for real pixels. */
+export async function openGradient(page: Page): Promise<void> {
+  await openStudy(page, 'study-001');
+  await expect(page.getByText(METADATA_TEXT)).toBeVisible();
+  await paintedPixels(page);
+}
+
+/** A length drawn from c + a to c + b (canvas offsets from the viewport centre). */
+export async function drawLength(page: Page, a: Pt, b: Pt) {
+  const c = await centre(page);
+  const from = { x: c.x + a.x, y: c.y + a.y };
+  const to = { x: c.x + b.x, y: c.y + b.y };
+  await pickTool(page, 'Length');
+  await dragOn(page, from, to);
+  return { from, to, c };
 }
 
 /** Press, drag and release between two canvas points with the left button. */

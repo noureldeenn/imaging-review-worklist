@@ -1,6 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
-  METADATA_TEXT,
   closeViewer,
   collectErrors,
   gotoWorklist,
@@ -17,14 +16,16 @@ import {
   clickOn,
   dist,
   dragOn,
+  drawLength,
   drawn,
   expectNear,
   fitScale,
   lumAt,
+  measurements,
+  openGradient,
   pickTool,
   toPage,
   valueOf,
-  type Pt,
 } from './measure-helpers';
 
 // First-party measurement overlay on the real (CPU-rendered) viewer. study-001
@@ -39,24 +40,6 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => {
   expect(errors).toEqual([]);
 });
-
-const measurements = (page: Page) => page.getByRole('region', { name: 'Measurements' });
-
-async function openGradient(page: Page): Promise<void> {
-  await openStudy(page, 'study-001');
-  await expect(page.getByText(METADATA_TEXT)).toBeVisible();
-  await paintedPixels(page);
-}
-
-/** A length drawn from c + a to c + b (canvas offsets from the viewport centre). */
-async function drawLength(page: Page, a: Pt, b: Pt) {
-  const c = await centre(page);
-  const from = { x: c.x + a.x, y: c.y + a.y };
-  const to = { x: c.x + b.x, y: c.y + b.y };
-  await pickTool(page, 'Length');
-  await dragOn(page, from, to);
-  return { from, to, c };
-}
 
 test('length in px stays on the same image pixels through zoom, rotation, flips and pan', async ({
   page,
@@ -126,15 +109,20 @@ test('length in px stays on the same image pixels through zoom, rotation, flips 
   // The Review panel lists it; its Delete button removes it.
   await openReview(page);
   const item = measurements(page).getByRole('button', {
-    name: `Length ${line?.label}`,
+    name: `Length 1, ${line?.label}`,
     exact: true,
   });
   await expect(item).toBeVisible();
   await measurements(page)
-    .getByRole('button', { name: `Delete Length ${line?.label}` })
+    .getByRole('button', { name: `Delete Length 1, ${line?.label}` })
     .click();
   expect(await drawn(page)).toEqual([]);
   await expect(measurements(page)).toContainText('No measurements yet.');
+  // Keyboard path: focus stays in the section (on its heading) and the delete is announced.
+  await expect(measurements(page).getByRole('heading', { name: /Measurements/ })).toBeFocused();
+  await expect(measurements(page).getByTestId('measurements-announcer')).toHaveText(
+    `Length 1, ${line?.label} deleted`,
+  );
 });
 
 test('angle, rectangle and ellipse values; Escape cancels; Delete and Clear remove', async ({

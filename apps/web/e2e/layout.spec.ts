@@ -149,6 +149,39 @@ test.describe('overlay 1024x768', () => {
     expect(await backingSize(page)).toEqual(backing);
     expect(await pageOverflow(page)).toEqual({ x: 0, y: 0 });
   });
+
+  test('the review overlay and the worklist drawer end above the info strip', async ({ page }) => {
+    await openGradient(page);
+    // True when the slider's centre is not covered by anything (it can be clicked).
+    const sliderOnTop = (label: string) =>
+      page.getByLabel(label).evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return hit === el || el.contains(hit);
+      });
+    const stripTop = async () =>
+      (await page.locator('.viewer-info').boundingBox())?.y ?? Number.NaN;
+
+    for (const name of ['Review', 'Worklist'] as const) {
+      if (name === 'Review') await openReview(page);
+      else await openWorklist(page);
+      const surface = page.getByRole('region', { name, exact: true });
+      await expect
+        .poll(async () => {
+          const b = await surface.boundingBox();
+          return (b?.y ?? 0) + (b?.height ?? 0);
+        })
+        .toBeLessThanOrEqual(await stripTop());
+      for (const label of ['Window width', 'Window level']) {
+        await expect(page.getByLabel(label)).toBeVisible();
+        expect(await sliderOnTop(label)).toBe(true);
+      }
+      await expect(page.getByText(METADATA_TEXT)).toBeVisible();
+    }
+    // Clickable for real: a click on the slider lands on it (and dismisses the drawer).
+    await page.getByLabel('Window width').click();
+    await expect(page.getByLabel('Window width')).toBeFocused();
+  });
 });
 
 test.describe('phone 390x844', () => {
