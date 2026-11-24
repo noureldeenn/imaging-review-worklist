@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
@@ -24,7 +26,12 @@ export default defineConfig({
     {
       command: 'npm -w apps/api run start',
       cwd: repoRoot,
-      env: { NODE_ENV: 'test', PORT: apiPort },
+      // Uploads made by the suite go to a throwaway folder, never the real local-dicom/.
+      env: {
+        NODE_ENV: 'test',
+        PORT: apiPort,
+        LOCAL_DICOM_DIR: path.join(tmpdir(), 'imaging-e2e-dicom'),
+      },
       url: `${apiUrl}/api/health`,
       reuseExistingServer: false,
     },
