@@ -1,4 +1,5 @@
 import { Hand, X } from 'lucide-react';
+import { useIsMutating } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useClaimStudy, useCompleteStudy } from '../queries/study-mutations';
 import { useStudy } from '../queries/studies-queries';
@@ -17,11 +18,14 @@ export function StudyPanel({ studyId }: { studyId: string }) {
   const isBlocked = useSessionStore((s) => s.blocked[studyId] === true);
   const selectStudy = useSessionStore((s) => s.selectStudy);
   const { data: study, isPending, isError } = useStudy(studyId);
-  const claim = useClaimStudy();
-  const complete = useCompleteStudy();
+  const claim = useClaimStudy(studyId);
+  const complete = useCompleteStudy(studyId);
   const [last, setLast] = useState<'claim' | 'complete' | null>(null);
 
-  const pending = claim.isPending || complete.isPending;
+  // Counted from the query client, not this instance's hooks: the panel is keyed by study id
+  // and remounts when the user switches away and back while a request is in flight.
+  const inFlight = useIsMutating({ mutationKey: ['study', studyId] });
+  const pending = inFlight > 0 || claim.isPending || complete.isPending;
   const active = last === 'claim' ? claim : last === 'complete' ? complete : null;
   let outcome: MutationOutcome = { kind: 'idle' };
   if (active?.isError) outcome = { kind: 'error', error: active.error };

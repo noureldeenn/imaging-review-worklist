@@ -120,6 +120,39 @@ describe('StudyPanel', () => {
     expect(claims).toBe(1);
   });
 
+  it('a pending claim keeps Claim disabled after switching A→B→A (panel remount)', async () => {
+    const gate = deferred<StudyDto>();
+    let claims = 0;
+    server.use(
+      http.get('/api/studies/:id', ({ params }) =>
+        HttpResponse.json(makeStudy(Number(String(params['id']).slice(-3)))),
+      ),
+      http.post('/api/studies/:id/claim', async () => {
+        claims += 1;
+        return HttpResponse.json(await gate.promise);
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+    select('study-001');
+    const claim = await screen.findByRole('button', { name: 'Claim' });
+    await waitFor(() => expect(claim).toBeEnabled());
+    await user.click(claim);
+    await waitFor(() => expect(claims).toBe(1));
+    select('study-002');
+    await screen.findByRole('heading', { name: /study-002 · / });
+    select('study-001');
+    await screen.findByRole('heading', { name: /study-001 · / });
+    const again = await screen.findByRole('button', { name: 'Claim' });
+    await waitFor(() => expect(again).toBeDisabled());
+    await user.click(again);
+    expect(claims).toBe(1);
+    gate.resolve(inReviewA(1, 1));
+    expect(await screen.findByLabelText('Review note')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Complete' })).toBeDisabled();
+    expect(claims).toBe(1);
+  });
+
   it('a delayed GET study response resolving after a successful claim does not revert the panel', async () => {
     const d1 = deferred<StudyDto>();
     let gets = 0;

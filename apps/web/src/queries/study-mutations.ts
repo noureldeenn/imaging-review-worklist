@@ -25,9 +25,10 @@ async function handleMutationError(queryClient: QueryClient, id: string, err: un
   }
 }
 
-export function useClaimStudy() {
+export function useClaimStudy(studyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['study', studyId, 'claim'],
     mutationFn: (v: { id: string; reviewerId: string; expectedVersion: number }) =>
       api.claim(v.id, {
         reviewerId: v.reviewerId,
@@ -41,9 +42,10 @@ export function useClaimStudy() {
   });
 }
 
-export function useCompleteStudy() {
+export function useCompleteStudy(studyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['study', studyId, 'complete'],
     mutationFn: (v: {
       id: string;
       reviewerId: string;
