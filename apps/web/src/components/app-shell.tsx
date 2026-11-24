@@ -34,7 +34,9 @@ export function AppShell({
       <div className="shrink-0 border-b border-white/10 px-2 py-1 max-[899px]:px-1.5">
         {toolbar}
       </div>
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+      {/* The viewer publishes its info-strip height here (--info-strip-h) so the
+          floating drawer and review overlay end above the strip. */}
+      <div data-viewer-frame="" className="relative flex min-h-0 flex-1 overflow-hidden">
         <main aria-label="Study viewer" className="flex min-h-0 min-w-0 flex-1 flex-col">
           {viewer}
         </main>

@@ -13,6 +13,8 @@ const base =
   'disabled:pointer-events-none disabled:opacity-35 aria-pressed:text-primary aria-expanded:text-primary ' +
   'h-14 min-w-14 max-[899px]:size-11 max-[899px]:min-w-11 max-[899px]:px-0';
 
+export const ATTENTION_DESCRIPTION = 'Needs attention: new review feedback';
+
 type Props = Omit<ComponentPropsWithoutRef<'button'>, 'children'> & {
   item: ToolbarItem;
   /** Controlled tooltip (the menu button hides it while its menu is open). */
@@ -51,6 +53,9 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, Props>(function Toolb
           aria-expanded={item.expanded}
           aria-controls={item.controls}
           data-attention={item.attention ? true : undefined}
+          // The dot is visual; its meaning reaches assistive tech as a description
+          // (the accessible name stays the visible label).
+          aria-description={item.attention ? ATTENTION_DESCRIPTION : undefined}
           className={cn(base, className)}
           onFocus={(e) => {
             onFocus?.(e);

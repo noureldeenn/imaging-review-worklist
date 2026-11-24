@@ -42,7 +42,8 @@ export function WorklistDrawer({ open, onClose }: { open: boolean; onClose(): vo
         if ((e.target as Element).closest('[data-study-id]')) onClose();
       }}
       className={cn(
-        'absolute inset-y-0 left-0 z-40 flex w-full max-w-[380px] flex-col border-r border-white/10 bg-card shadow-2xl shadow-black/60 outline-none',
+        // Ends above the viewer's info strip (height published as --info-strip-h).
+        'absolute top-0 bottom-(--info-strip-h,0px) left-0 z-40 flex w-full max-w-[380px] flex-col border-r border-b border-white/10 bg-card shadow-2xl shadow-black/60 outline-none',
         'duration-200 ease-out motion-reduce:transition-none',
         // Visibility flips at once on open (so focus can move in immediately) and
         // only after the slide on close.

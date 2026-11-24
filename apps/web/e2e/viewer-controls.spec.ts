@@ -245,7 +245,7 @@ for (const width of [360, 390, 768, 820]) {
   test.describe(`toolbar at ${width}px`, () => {
     test.use({ viewport: { width, height: 844 } });
 
-    test('icon toolbar: at most seven 44px buttons, no horizontal overflow', async ({ page }) => {
+    test('icon toolbar: exactly seven 44px buttons, no horizontal overflow', async ({ page }) => {
       await openGradient(page);
       await expect(page.getByRole('toolbar', { name: 'Image tools' })).toBeVisible();
       const m = await page.evaluate(() => {
@@ -270,7 +270,7 @@ for (const width of [360, 390, 768, 820]) {
       expect(m.page).toBe(0);
       expect(m.toolbar).toBe(0);
       expect(m.right).toBeLessThanOrEqual(m.clientWidth);
-      expect(m.count).toBeLessThanOrEqual(7);
+      expect(m.count).toBe(7);
       expect(m.small).toEqual([]);
     });
   });

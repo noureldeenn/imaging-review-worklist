@@ -69,6 +69,18 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
   // The active tool survives study changes; everything else resets per image.
   const toolRef = useRef<ViewerTool>(DEFAULT_VIEW.tool);
   const [snap, setSnap] = useState<ViewState>({ ...IDLE, view: DEFAULT_VIEW });
+  const [snapFor, setSnapFor] = useState(studyId);
+
+  // A study switch drops the previous image's snapshot during render, so not
+  // even one frame shows A's metadata, readout or ready state under B.
+  if (snapFor !== studyId) {
+    setSnapFor(studyId);
+    setSnap({
+      ...IDLE,
+      view: { ...DEFAULT_VIEW, tool: snap.view.tool },
+      state: studyId === null ? 'idle' : 'loading',
+    });
+  }
 
   useEffect(() => {
     const el = containerRef.current;

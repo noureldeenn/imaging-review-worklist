@@ -14,9 +14,11 @@ const placement: Record<ReviewMode, { open: string; closed: string }> = {
     open: 'relative w-[360px] shrink-0 border-l',
     closed: 'absolute inset-y-0 right-0 w-[360px] invisible translate-x-full',
   },
+  // Ends above the viewer's info strip (its height is published as --info-strip-h).
   overlay: {
-    open: 'absolute inset-y-0 right-0 z-30 w-[380px] max-w-[90vw] border-l shadow-2xl shadow-black/60 visible translate-x-0',
-    closed: 'absolute inset-y-0 right-0 z-30 w-[380px] max-w-[90vw] invisible translate-x-full',
+    open: 'absolute top-0 right-0 bottom-(--info-strip-h,0px) z-30 w-[380px] max-w-[90vw] border-b border-l shadow-2xl shadow-black/60 visible translate-x-0',
+    closed:
+      'absolute top-0 right-0 bottom-(--info-strip-h,0px) z-30 w-[380px] max-w-[90vw] invisible translate-x-full',
   },
   sheet: {
     open: 'absolute inset-x-0 bottom-0 z-30 max-h-[70dvh] rounded-t-xl border-t shadow-2xl shadow-black/70 visible translate-y-0',
@@ -34,11 +36,14 @@ const placement: Record<ReviewMode, { open: string; closed: string }> = {
 export function ReviewPanel({
   mode,
   open,
+  focusOnOpen = true,
   onClose,
   children,
 }: {
   mode: ReviewMode;
   open: boolean;
+  /** False when feedback (not the user) opened the panel: focus stays where it is. */
+  focusOnOpen?: boolean;
   onClose(): void;
   children: ReactNode;
 }) {
@@ -49,7 +54,7 @@ export function ReviewPanel({
   useFocusHandoff({
     open,
     ref,
-    focusOnOpen: floating,
+    focusOnOpen: floating && focusOnOpen,
     initialFocus: () => ref.current?.querySelector<HTMLElement>('h3[tabindex="-1"]') ?? null,
     returnFocus: () => document.querySelector<HTMLElement>(TRIGGER),
   });

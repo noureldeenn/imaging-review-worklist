@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deferred, type Deferred } from '../test/deferred';
 import { useDicomViewer } from './use-dicom-viewer';
@@ -261,5 +262,30 @@ describe('useDicomViewer', () => {
     expect(viewerStats.engines).toBe(0);
     expect(viewerStats.observers).toBe(0);
     expect(viewerStats.loadsDiscarded).toBe(1);
+  });
+
+  it('a study switch never renders the previous image as ready (no stale info-strip frame)', async () => {
+    const seen: Array<{ id: string | null; state: string; metadata: unknown }> = [];
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string | null }) => {
+        const v = useDicomViewer(id);
+        v.containerRef.current = container;
+        // Committed renders only (a render React discards is never painted).
+        useLayoutEffect(() => {
+          seen.push({ id, state: v.state, metadata: v.metadata });
+        });
+        return v;
+      },
+      { initialProps: { id: 'study-A' as string | null } },
+    );
+    const a = await waitForStack('study-A');
+    await act(async () => a.d.resolve('ok'));
+    await waitFor(() => expect(result.current.state).toBe('ready'));
+
+    seen.length = 0;
+    rerender({ id: 'study-B' });
+    const underB = seen.filter((s) => s.id === 'study-B');
+    expect(underB.length).toBeGreaterThan(0);
+    expect(underB.every((s) => s.state !== 'ready' && s.metadata === null)).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../app';
 import type { StudyDto } from '../api/schemas';
 import { useSessionStore } from '../stores/session-store';
+import { ATTENTION_DESCRIPTION } from '../toolbar/toolbar-button';
 import { deferred } from '../test/deferred';
 import { makeStudy } from '../test/handlers';
 import { stubWindowWidth } from '../test/match-media';
@@ -187,5 +188,56 @@ describe('Mutation feedback reaches a collapsed panel', () => {
     await user.keyboard('{Enter}');
     await waitFor(() => expect(screen.queryByText(/now version/)).not.toBeInTheDocument());
     expect(button('Review')).not.toHaveAttribute('data-attention');
+  });
+
+  it('feedback reveals the panel without moving focus into it', async () => {
+    const gate = deferred<StudyDto>();
+    server.use(
+      http.post('/api/studies/:id/claim', async () => HttpResponse.json(await gate.promise)),
+    );
+    const user = setup(1024);
+    await claimThenCollapse(user);
+    button('Worklist').focus();
+    act(() =>
+      gate.resolve(makeStudy(1, { status: 'InReview', ownerId: 'reviewer-a', version: 1 })),
+    );
+    expect(await screen.findByText('Study claimed.')).toBeInTheDocument();
+    expect(panel()).toHaveAttribute('data-state', 'open');
+    // Focus stays on the toolbar; nothing inside the panel took it.
+    expect(button('Worklist')).toHaveFocus();
+    expect(panel()?.contains(document.activeElement)).toBe(false);
+  });
+
+  it('feedback never closes an open Worklist drawer; the Review dot (with a description) is the cue', async () => {
+    const gate = deferred<void>();
+    const current = makeStudy(1, { status: 'InReview', ownerId: 'reviewer-b', version: 3 });
+    server.use(
+      http.post('/api/studies/:id/claim', async () => {
+        await gate.promise;
+        return HttpResponse.json(
+          { code: 'STALE_VERSION', message: 'stale', current },
+          { status: 412 },
+        );
+      }),
+    );
+    const user = setup(1024);
+    await claimThenCollapse(user);
+    await user.click(button('Worklist'));
+    expect(drawer()).toHaveAttribute('data-state', 'open');
+    const focused = document.activeElement;
+
+    act(() => gate.resolve());
+    await waitFor(() => expect(button('Review')).toHaveAttribute('data-attention', 'true'));
+    expect(drawer()).toHaveAttribute('data-state', 'open');
+    expect(panel()).toHaveAttribute('data-state', 'closed');
+    expect(document.activeElement).toBe(focused);
+    expect(button('Review')).toHaveAttribute('aria-description', ATTENTION_DESCRIPTION);
+
+    // The 412 recovery stays reachable from the badged button.
+    await user.click(button('Review'));
+    expect(drawer()).toHaveAttribute('data-state', 'closed');
+    button('Refresh and continue').focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByText(/now version/)).not.toBeInTheDocument());
   });
 });

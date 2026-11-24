@@ -32,6 +32,9 @@ export function layoutStub(
     openReview: vi.fn(),
     closeReview: vi.fn(),
     toggleReview: vi.fn(),
+    revealReview: vi.fn(),
+    reviewFocusOnOpen: true,
+    feedbackUnseen: false,
     reviewAttention: false,
     ...overrides,
   };

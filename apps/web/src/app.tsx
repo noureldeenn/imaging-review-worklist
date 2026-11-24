@@ -34,18 +34,25 @@ export function App() {
   return (
     <AppShell
       headerActions={<ReviewerSelect />}
-      toolbar={<AppToolbar layout={{ ...layout, reviewAttention: blocked }} />}
+      toolbar={
+        <AppToolbar layout={{ ...layout, reviewAttention: blocked || layout.feedbackUnseen }} />
+      }
       viewer={
         selectedStudyId === null ? <EmptyViewer /> : <StudyViewerLazy studyId={selectedStudyId} />
       }
       panel={
         selectedStudyId !== null && (
-          <ReviewPanel mode={layout.mode} open={layout.reviewOpen} onClose={layout.closeReview}>
+          <ReviewPanel
+            mode={layout.mode}
+            open={layout.reviewOpen}
+            focusOnOpen={layout.reviewFocusOnOpen}
+            onClose={layout.closeReview}
+          >
             <StudyPanel
               key={selectedStudyId}
               studyId={selectedStudyId}
-              autoFocus={floating && layout.reviewOpen}
-              onFeedback={layout.openReview}
+              autoFocus={floating && layout.reviewOpen && layout.reviewFocusOnOpen}
+              onFeedback={layout.revealReview}
             />
           </ReviewPanel>
         )

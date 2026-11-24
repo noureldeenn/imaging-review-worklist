@@ -59,6 +59,26 @@ describe('useLayoutState', () => {
     expect(result.current.reviewOpen).toBe(true);
   });
 
+  it('revealReview (feedback): opens quietly, or badges Review while a floating drawer is open', () => {
+    const { result } = mount(1024, 'study-001');
+    act(() => result.current.openWorklist());
+    act(() => result.current.revealReview());
+    expect(result.current.worklistOpen).toBe(true);
+    expect(result.current.reviewOpen).toBe(false);
+    expect(result.current.feedbackUnseen).toBe(true);
+
+    act(() => result.current.closeWorklist());
+    act(() => result.current.revealReview());
+    expect(result.current.reviewOpen).toBe(true);
+    expect(result.current.reviewFocusOnOpen).toBe(false);
+    expect(result.current.feedbackUnseen).toBe(false);
+
+    // A user open (the Review button) moves focus in as before.
+    act(() => result.current.closeReview());
+    act(() => result.current.openReview());
+    expect(result.current.reviewFocusOnOpen).toBe(true);
+  });
+
   it('never reports the review panel open without a selection', () => {
     const { result } = mount(1440);
     act(() => result.current.openReview());

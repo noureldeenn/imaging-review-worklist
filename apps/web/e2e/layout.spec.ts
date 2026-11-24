@@ -169,7 +169,7 @@ test.describe('phone 390x844', () => {
           return [r.width, r.height];
         }),
     );
-    expect(sizes.length).toBeLessThanOrEqual(7);
+    expect(sizes.length).toBe(7);
     for (const [w, h] of sizes) {
       expect(w).toBeGreaterThanOrEqual(44);
       expect(h).toBeGreaterThanOrEqual(44);

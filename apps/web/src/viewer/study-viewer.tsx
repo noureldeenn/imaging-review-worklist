@@ -1,6 +1,7 @@
 import { ImageOff, LoaderCircle } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useDicomViewer } from './use-dicom-viewer';
+import { useInfoStripOffset } from './use-info-strip-offset';
 import { useViewerBridge, type ViewerCommands } from './viewer-bridge';
 import { ViewerControls } from './viewer-controls';
 import { ZOOM_STEP } from './viewer-math';
@@ -23,6 +24,8 @@ export function StudyViewer({ studyId }: { studyId: string }) {
   const { containerRef, state, error, metadata, windowLevel, view } = viewer;
   const { setTool, zoomBy, rotateBy, flipH, flipV, toggleInvert, reset } = viewer;
   const ready = state === 'ready';
+  const stripRef = useRef<HTMLDivElement>(null);
+  useInfoStripOffset(stripRef);
 
   const commands = useMemo<ViewerCommands>(
     () => ({
@@ -88,7 +91,10 @@ export function StudyViewer({ studyId }: { studyId: string }) {
           </div>
         )}
       </div>
-      <div className="viewer-info flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/10 bg-black px-3 py-1.5 max-[899px]:px-3 max-[899px]:pb-1">
+      <div
+        ref={stripRef}
+        className="viewer-info flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/10 bg-black px-3 py-1.5 max-[899px]:px-3 max-[899px]:pb-1"
+      >
         {ready && metadata && <ViewerMetadata metadata={metadata} />}
         {ready && <ViewerReadout view={view} />}
         <div className="ml-auto flex min-w-0 items-center gap-3 max-[899px]:ml-0 max-[899px]:basis-full">
