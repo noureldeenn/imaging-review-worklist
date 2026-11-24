@@ -1,3 +1,5 @@
+// Tests the import planner in scripts/ (pure logic shared with the CLI); this is why
+// apps/api/tsconfig.json sets rootDir to ../.. instead of src.
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MODALITIES,
