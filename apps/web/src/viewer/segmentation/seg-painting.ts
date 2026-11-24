@@ -1,7 +1,7 @@
 import type { ImageMapper } from '../annotations/annotation-geometry';
 import type { PointerInput } from '../annotations/annotation-drawing';
 import type { Point } from '../annotations/measure-math';
-import { packDiff, restoreDiff } from './mask-memory';
+import { createDiffRecorder, type DiffRecorder } from './mask-memory';
 import {
   makeGate,
   stampDisc,
@@ -11,7 +11,7 @@ import {
   type PixelSource,
 } from './seg-math';
 import { COLOR_IMAGE_NOTICE, isSegmentationTool, type Rect } from './seg-types';
-import { notifyMask, smartRange, useSegmentStore } from './segment-store';
+import { notifyMask, registerStroke, smartRange, useSegmentStore } from './segment-store';
 
 type Scheduler = { request(cb: () => void): number; cancel(handle: number): void };
 
@@ -22,7 +22,9 @@ type Stroke = {
   label: number;
   radius: number;
   gate: ((index: number) => boolean) | undefined;
-  diff: Map<number, number>;
+  diff: DiffRecorder;
+  /** Unregisters the stroke from the store (delete/clear cancel it). */
+  release(): void;
   /** Changed since the last overlay notification. */
   dirty: Rect | null;
   /** Everything the stroke touched (undo / cancel redraw). */
@@ -113,8 +115,10 @@ export function createSegPainting({
     cancelFrame();
     const s = stroke;
     stroke = null;
-    if (!s || s.diff.size === 0) return;
-    restoreDiff(s.mask, packDiff(s.diff, s.touched));
+    if (!s) return;
+    s.release();
+    if (s.diff.size() === 0) return;
+    s.diff.restore(s.mask);
     notifyMask(studyId, s.touched);
   };
   const begin = ({ id, point, tool }: PointerInput): boolean => {
@@ -138,9 +142,11 @@ export function createSegPainting({
       label: target.label,
       radius: store().brushSize,
       gate,
-      diff: new Map(),
+      diff: createDiffRecorder(width * height),
       dirty: null,
       touched: null,
+      // Deleting a segment or clearing mid-stroke cancels (restores) it first.
+      release: registerStroke(studyId, () => cancel()),
     };
     stamp(stroke, start);
     schedule();
@@ -165,7 +171,8 @@ export function createSegPainting({
       moveTo(s, point);
       flush();
       stroke = null;
-      store().commitStroke(studyId, s.diff, s.touched);
+      s.release();
+      store().commitStroke(studyId, s.diff.pack(s.touched));
       return true;
     },
     keyDown(key) {

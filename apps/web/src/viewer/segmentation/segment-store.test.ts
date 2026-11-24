@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMaskMemory, packDiff } from './mask-memory';
+import { createDiffRecorder, createMaskMemory } from './mask-memory';
 import { stampDisc } from './seg-math';
 import {
   DROPPED_NOTICE,
@@ -26,9 +26,9 @@ const study = (id = 'A') => store().study(id);
 function paint(studyId: string, centre: [number, number], radius = 2, erase = false) {
   const target = store().prepareStroke(studyId, W, H, erase);
   if (!target) return null;
-  const diff = new Map<number, number>();
+  const diff = createDiffRecorder(W * H);
   const rect = stampDisc(target.mask, W, H, centre, radius, erase ? 0 : target.label, { diff });
-  store().commitStroke(studyId, diff, rect);
+  store().commitStroke(studyId, diff.pack(rect));
   return target;
 }
 const labelAt = (studyId: string, x: number, y: number) => getMask(studyId)?.mask[y * W + x];
@@ -177,9 +177,14 @@ describe('memory budget', () => {
     const memory = createMaskMemory(100 + 5 * 3);
     const r = memory.ensure('A', 10, 10);
     expect('entry' in r).toBe(true);
-    for (let k = 0; k < 3; k += 1) memory.pushUndo('A', packDiff(new Map([[k, 0]]), null));
+    const one = (index: number) => {
+      const d = createDiffRecorder(100);
+      d.record(index, 0);
+      return d.pack(null);
+    };
+    for (let k = 0; k < 3; k += 1) memory.pushUndo('A', one(k));
     expect(memory.totalBytes()).toBe(115);
-    memory.pushUndo('A', packDiff(new Map([[9, 0]]), null));
+    memory.pushUndo('A', one(9));
     expect(memory.totalBytes()).toBeLessThanOrEqual(115);
     expect(memory.get('A')?.undo).toHaveLength(3);
   });

@@ -22,8 +22,8 @@ export type GateMode = 'hu' | 'stored';
 type StampOptions = {
   /** Only pixels whose index passes are written (smart brush). */
   gate?: (index: number) => boolean;
-  /** Records each changed pixel's value from before the stroke (first write wins). */
-  diff?: Map<number, number>;
+  /** Records each changed pixel's value from before the stroke (it keeps the first write). */
+  diff?: { record(index: number, previous: number): void };
 };
 
 /**
@@ -55,7 +55,7 @@ export function stampDisc(
       const i = row * width + col;
       const old = mask[i] ?? 0;
       if (old === value || (gate && !gate(i))) continue;
-      if (diff && !diff.has(i)) diff.set(i, old);
+      diff?.record(i, old);
       mask[i] = value;
     }
   }

@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { Spacing } from '../annotations/measure-math';
-import { createMaskMemory, packDiff, restoreDiff, type MaskEntry } from './mask-memory';
+import {
+  cancelStroke,
+  notifyMask,
+  registerStroke,
+  resetMaskEvents,
+  subscribeMask,
+} from './mask-events';
+import { createMaskMemory, restoreDiff, type MaskEntry, type StrokeDiff } from './mask-memory';
 import { countLabels } from './seg-math';
 import {
   BRUSH_DEFAULT,
@@ -13,7 +20,6 @@ import {
   TOO_LARGE_NOTICE,
   type PresetId,
   type Range,
-  type Rect,
   type Segment,
 } from './seg-types';
 
@@ -47,6 +53,8 @@ type SegmentState = {
   study(studyId: string): StudySegments;
   addSegment(studyId: string): Segment | null;
   renameSegment(studyId: string, id: string, name: string): void;
+  /** After editing: an empty or duplicate name becomes `Segment N` (its own number), kept unique. */
+  finishRename(studyId: string, id: string): void;
   setActive(studyId: string, id: string): void;
   toggleVisible(studyId: string, id: string): void;
   removeSegment(studyId: string, id: string): void;
@@ -60,7 +68,7 @@ type SegmentState = {
     erase?: boolean,
   ): { mask: Uint8Array; width: number; label: number } | null;
   /** Records a finished stroke for undo (no-op when nothing changed). */
-  commitStroke(studyId: string, diff: Map<number, number>, rect: Rect | null): void;
+  commitStroke(studyId: string, diff: StrokeDiff): void;
   setBrushSize(size: number): void;
   setOpacity(opacity: number): void;
   setPreset(preset: PresetId): void;
@@ -81,23 +89,9 @@ const EMPTY: StudySegments = {
 };
 
 let memory = createMaskMemory();
-const listeners = new Map<string, Set<(rect: Rect | null) => void>>();
+// Re-exported so callers keep one import for the segmentation state.
+export { notifyMask, registerStroke, subscribeMask };
 let nextId = 0;
-
-/** Overlay subscription: `rect` is the changed area, null means redraw everything. */
-export function subscribeMask(studyId: string, cb: (rect: Rect | null) => void): () => void {
-  const set = listeners.get(studyId) ?? new Set();
-  set.add(cb);
-  listeners.set(studyId, set);
-  return () => {
-    set.delete(cb);
-    if (set.size === 0) listeners.delete(studyId);
-  };
-}
-
-export function notifyMask(studyId: string, rect: Rect | null): void {
-  listeners.get(studyId)?.forEach((cb) => cb(rect));
-}
 
 /** The study's mask without touching the LRU order (overlay, areas). */
 export const getMask = (studyId: string): MaskEntry | undefined => memory.get(studyId);
@@ -158,6 +152,7 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
     const segment: Segment = {
       id: `seg${nextId}`,
       label,
+      number: s.created + 1,
       name: `Segment ${s.created + 1}`,
       color: PALETTE[label - 1] ?? '#ef4444',
       visible: true,
@@ -172,7 +167,6 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
   const mapSegment = (studyId: string, id: string, fn: (s: Segment) => Segment) => {
     const s = get().study(studyId);
     patch(studyId, { segments: s.segments.map((x) => (x.id === id ? fn(x) : x)) });
-    notifyMask(studyId, null);
   };
 
   return {
@@ -187,9 +181,27 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
     study: (studyId) => get().byStudy[studyId] ?? EMPTY,
     addSegment: add,
     renameSegment: (studyId, id, name) => mapSegment(studyId, id, (x) => ({ ...x, name })),
+    finishRename(studyId, id) {
+      const s = get().study(studyId);
+      const target = s.segments.find((x) => x.id === id);
+      if (!target) return;
+      const taken = new Set(s.segments.filter((x) => x.id !== id).map((x) => x.name.trim()));
+      const name = target.name.trim();
+      if (name && !taken.has(name)) {
+        if (name !== target.name) mapSegment(studyId, id, (x) => ({ ...x, name }));
+        return;
+      }
+      let fallback = `Segment ${target.number}`;
+      for (let k = 2; taken.has(fallback); k += 1) fallback = `Segment ${target.number}.${k}`;
+      mapSegment(studyId, id, (x) => ({ ...x, name: fallback }));
+    },
     setActive: (studyId, id) => patch(studyId, { activeId: id }),
-    toggleVisible: (studyId, id) => mapSegment(studyId, id, (x) => ({ ...x, visible: !x.visible })),
+    toggleVisible(studyId, id) {
+      mapSegment(studyId, id, (x) => ({ ...x, visible: !x.visible }));
+      notifyMask(studyId, null);
+    },
     removeSegment(studyId, id) {
+      cancelStroke(studyId);
       const s = get().study(studyId);
       const index = s.segments.findIndex((x) => x.id === id);
       const target = s.segments[index];
@@ -208,6 +220,7 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
       notifyMask(studyId, null);
     },
     clear(studyId) {
+      cancelStroke(studyId);
       memory.delete(studyId);
       patch(studyId, { ...EMPTY, revision: get().study(studyId).revision + 1 });
       if (get().status?.studyId === studyId) set({ status: null });
@@ -246,12 +259,15 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
       s = get().study(studyId);
       if (s.activeId !== active.id) patch(studyId, { activeId: active.id });
       // Painting into a hidden segment would be invisible: show it.
-      if (!active.visible) mapSegment(studyId, active.id, (x) => ({ ...x, visible: true }));
+      if (!active.visible) {
+        mapSegment(studyId, active.id, (x) => ({ ...x, visible: true }));
+        notifyMask(studyId, null);
+      }
       return { mask: result.entry.mask, width, label: active.label };
     },
-    commitStroke(studyId, diff, rect) {
-      if (diff.size === 0) return;
-      const dropped = memory.pushUndo(studyId, packDiff(diff, rect));
+    commitStroke(studyId, diff) {
+      if (diff.indices.length === 0) return;
+      const dropped = memory.pushUndo(studyId, diff);
       markDropped(dropped);
       bump(studyId, { undoDepth: memory.get(studyId)?.undo.length ?? 0 });
     },
@@ -268,6 +284,6 @@ export const useSegmentStore = create<SegmentState>((set, get) => {
 /** Test helper: empty store and masks (optionally with a different memory budget). */
 export function resetSegmentation(budget?: number): void {
   memory = createMaskMemory(budget);
-  listeners.clear();
+  resetMaskEvents();
   useSegmentStore.setState(useSegmentStore.getInitialState(), true);
 }

@@ -16,18 +16,51 @@ export type EnsureResult = { entry: MaskEntry; dropped: string[] } | { tooLarge:
 const diffBytes = (d: StrokeDiff) => d.indices.byteLength + d.old.byteLength;
 const entryBytes = (e: MaskEntry) => e.undo.reduce((n, d) => n + diffBytes(d), e.mask.byteLength);
 
-/** Packs a stroke's first-old-value map into typed arrays (5 bytes per changed pixel). */
-export function packDiff(diff: Map<number, number>, rect: Rect | null): StrokeDiff {
-  const indices = new Uint32Array(diff.size);
-  const old = new Uint8Array(diff.size);
-  let k = 0;
-  diff.forEach((value, index) => {
-    indices[k] = index;
-    old[k] = value;
-    k += 1;
-  });
-  return { indices, old, rect };
+/**
+ * Records one stroke's changes: the first previous label of each pixel it
+ * touches, in growable typed arrays (5 bytes per changed pixel) with a bitset
+ * of `pixels` bits for the first-write check. Unlike a Map it has no entry
+ * limit, so a stroke over a whole 4096 x 4096 image cannot throw.
+ */
+export function createDiffRecorder(pixels: number) {
+  const seen = new Uint32Array(Math.ceil(pixels / 32));
+  let indices = new Uint32Array(1024);
+  let old = new Uint8Array(1024);
+  let n = 0;
+  return {
+    record(index: number, previous: number): void {
+      const word = index >>> 5;
+      const bit = 1 << (index & 31);
+      if (((seen[word] ?? 0) & bit) !== 0) return;
+      seen[word] = (seen[word] ?? 0) | bit;
+      if (n === indices.length) {
+        const capacity = Math.min(Math.max(1024, n * 2), Math.max(pixels, 1));
+        const grownIndices = new Uint32Array(capacity);
+        grownIndices.set(indices);
+        const grownOld = new Uint8Array(capacity);
+        grownOld.set(old);
+        indices = grownIndices;
+        old = grownOld;
+      }
+      indices[n] = index;
+      old[n] = previous;
+      n += 1;
+    },
+    size: () => n,
+    /** Puts the recorded previous labels back (a cancelled stroke). */
+    restore(mask: Uint8Array): void {
+      for (let k = 0; k < n; k += 1) mask[indices[k] ?? 0] = old[k] ?? 0;
+    },
+    /** A right-sized copy for the undo history. */
+    pack: (rect: Rect | null): StrokeDiff => ({
+      indices: indices.slice(0, n),
+      old: old.slice(0, n),
+      rect,
+    }),
+  };
 }
+
+export type DiffRecorder = ReturnType<typeof createDiffRecorder>;
 
 /** Writes a diff's previous labels back into the mask (undo, or a cancelled stroke). */
 export function restoreDiff(mask: Uint8Array, { indices, old }: StrokeDiff): void {

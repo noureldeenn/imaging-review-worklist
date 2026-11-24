@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImageMapper } from '../annotations/annotation-geometry';
+import { createDiffRecorder } from './mask-memory';
 import { createMaskRenderer } from './mask-renderer';
 import { stampDisc } from './seg-math';
 import { notifyMask, resetSegmentation, useSegmentStore } from './segment-store';
@@ -65,9 +66,9 @@ function setup(getMapper: () => ImageMapper | null = () => zoom2) {
 function paint(x: number, y: number) {
   const target = useSegmentStore.getState().prepareStroke('A', 16, 8);
   if (!target) throw new Error('refused');
-  const diff = new Map<number, number>();
+  const diff = createDiffRecorder(16 * 8);
   const rect = stampDisc(target.mask, 16, 8, [x, y], 1, target.label, { diff });
-  useSegmentStore.getState().commitStroke('A', diff, rect);
+  useSegmentStore.getState().commitStroke('A', diff.pack(rect));
   return rect;
 }
 

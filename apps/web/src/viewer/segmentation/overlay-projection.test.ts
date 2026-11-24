@@ -102,6 +102,7 @@ describe('colours', () => {
   const seg = (label: number, color: string, visible = true): Segment => ({
     id: `s${label}`,
     label,
+    number: label,
     name: `Segment ${label}`,
     color,
     visible,

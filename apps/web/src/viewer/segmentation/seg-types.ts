@@ -14,6 +14,8 @@ export type Segment = {
   id: string;
   /** Value written into the label mask (1-8); stable for the segment's life. */
   label: number;
+  /** Creation number in its study (1, 2, ...; never reused until Clear): `Segment N`. */
+  number: number;
   name: string;
   color: string;
   visible: boolean;

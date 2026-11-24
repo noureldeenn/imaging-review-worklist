@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createDiffRecorder } from './mask-memory';
 import {
   areaOf,
   countLabels,
@@ -49,18 +50,23 @@ describe('stampDisc', () => {
   it('overwrites other labels, erases with 0 and records first old values in the diff', () => {
     const mask = new Uint8Array(W * H);
     stampDisc(mask, W, H, [5.5, 5.5], 1, 1);
-    const diff = new Map<number, number>();
+    const diff = createDiffRecorder(W * H);
+    const oldAt = (i: number) => {
+      const p = diff.pack(null);
+      return p.old[Array.from(p.indices).indexOf(i)];
+    };
     stampDisc(mask, W, H, [5.5, 5.5], 1, 2, { diff });
     expect(at(mask, 5, 5)).toBe(2);
-    expect(diff.get(5 * W + 5)).toBe(1);
+    expect(oldAt(5 * W + 5)).toBe(1);
     stampDisc(mask, W, H, [5.5, 5.5], 1, 0, { diff });
     expect(at(mask, 5, 5)).toBe(0);
     // The diff keeps the value from BEFORE the stroke.
-    expect(diff.get(5 * W + 5)).toBe(1);
+    expect(oldAt(5 * W + 5)).toBe(1);
+    expect(diff.size()).toBe(5);
     // Unchanged pixels are not recorded.
-    const again = new Map<number, number>();
+    const again = createDiffRecorder(W * H);
     stampDisc(mask, W, H, [5.5, 5.5], 1, 0, { diff: again });
-    expect(again.size).toBe(0);
+    expect(again.size()).toBe(0);
   });
 
   it('writes only where the gate allows', () => {

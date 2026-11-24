@@ -1,19 +1,18 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ImageMapper } from '../annotations/annotation-geometry';
 import { createMaskRenderer, type MaskRenderer } from './mask-renderer';
-import type { Segment } from './seg-types';
 import { useSegmentStore } from './segment-store';
 
 type Props = {
   studyId: string;
-  /** The view transform (kept for parity with the measurement overlay; any render re-projects). */
-  revision: unknown;
   getMapper(): ImageMapper | null;
   /** Columns x rows of the loaded image (the mask size). */
   imageSize: { width: number; height: number };
 };
 
-const EMPTY: Segment[] = [];
+/** What the colours depend on: label, colour and visibility (not names). */
+const lookOf = (segments: Array<{ label: number; color: string; visible: boolean }>) =>
+  segments.map((x) => `${x.label}:${x.color}:${x.visible ? 1 : 0}`).join('|');
 
 /**
  * Segmentation layer: a `<canvas aria-hidden>` SIBLING above the viewport (never
@@ -23,7 +22,8 @@ const EMPTY: Segment[] = [];
  * mapper getter. Nothing animates. See `mask-renderer` for the drawing.
  */
 export function SegmentationOverlay({ studyId, getMapper, imageSize }: Props) {
-  const segments = useSegmentStore((s) => s.byStudy[studyId]?.segments ?? EMPTY);
+  // A string, so a rename (same colours) neither re-renders nor recolours.
+  const look = useSegmentStore((s) => lookOf(s.byStudy[studyId]?.segments ?? []));
   // Subscribed only so an opacity change re-renders (and so re-projects).
   useSegmentStore((s) => s.opacity);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,7 +41,7 @@ export function SegmentationOverlay({ studyId, getMapper, imageSize }: Props) {
     };
   }, [studyId, width, height, getMapper]);
 
-  useEffect(() => renderer.current?.recolor(), [segments]);
+  useEffect(() => renderer.current?.recolor(), [look]);
   // Every render of the viewer follows a controller publish (zoom, pan, rotation,
   // flip, resize) or an opacity change: re-project before paint. A pan keeps the
   // same `view` object, so this deliberately has no dependency list.

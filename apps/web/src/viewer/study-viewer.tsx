@@ -73,7 +73,6 @@ export function StudyViewer({ studyId }: { studyId: string }) {
           <SegmentationOverlay
             key={studyId}
             studyId={studyId}
-            revision={view}
             getMapper={viewer.getMapper}
             imageSize={{ width: metadata.columns, height: metadata.rows }}
           />
