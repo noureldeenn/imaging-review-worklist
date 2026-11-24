@@ -40,9 +40,12 @@ Build the measurements in the app, isolated under `apps/web/src/viewer/annotatio
 
 ## Consequences
 
-- No new dependency; the store and list add about 2 kB gzip to the entry and the drawing
+- No new dependency; the store and list add about 2.5 kB gzip to the entry and the drawing
   and overlay about 4 kB to the lazy viewer chunk.
 - `INTERACTION_LISTENERS` stays 8 and the five-cycle baseline tests still hold exactly.
+- `__viewerStats.observers` counts only observers that hold Cornerstone resources (the
+  viewport's resize observer); the small observer that publishes the info-strip height for
+  the floating panels is separate, not counted, and disconnected on unmount.
 - Fewer features than `@cornerstonejs/tools`: no persistence or export, no ROI statistics,
   no text annotations, no calibration tool.
 - The feature can be removed by deleting the `annotations/` folder, the toolbar group and
