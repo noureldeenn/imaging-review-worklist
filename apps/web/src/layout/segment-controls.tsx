@@ -34,7 +34,14 @@ const toNumber = (raw: string): number | null => {
  * Brush size, opacity, the smart brush range and Undo. For non-CT images the
  * HU presets are disabled and the custom range applies to stored pixel values.
  */
-export function SegmentControls({ studyId }: { studyId: string }) {
+export function SegmentControls({
+  studyId,
+  onUndoExhausted,
+}: {
+  studyId: string;
+  /** Called when Undo disabled itself (no strokes left), so focus can move on. */
+  onUndoExhausted?(): void;
+}) {
   const brushSize = useSegmentStore((s) => s.brushSize);
   const opacity = useSegmentStore((s) => s.opacity);
   const preset = useSegmentStore((s) => s.preset);
@@ -145,7 +152,10 @@ export function SegmentControls({ studyId }: { studyId: string }) {
         size="sm"
         className="self-start"
         disabled={undoDepth === 0}
-        onClick={() => store().undo(studyId)}
+        onClick={() => {
+          store().undo(studyId);
+          if ((store().byStudy[studyId]?.undoDepth ?? 0) === 0) onUndoExhausted?.();
+        }}
       >
         <Undo2 aria-hidden="true" />
         Undo last stroke

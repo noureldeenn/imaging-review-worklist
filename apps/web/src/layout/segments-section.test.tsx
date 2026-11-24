@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createDiffRecorder } from '../viewer/segmentation/mask-memory';
 import { stampDisc } from '../viewer/segmentation/seg-math';
 import {
   DROPPED_NOTICE,
@@ -24,9 +25,9 @@ function paint(studyId: string, centre: [number, number], radius = 1) {
   act(() => {
     const t = store().prepareStroke(studyId, 32, 32);
     if (!t) return;
-    const diff = new Map<number, number>();
+    const diff = createDiffRecorder(32 * 32);
     const rect = stampDisc(t.mask, 32, 32, centre, radius, t.label, { diff });
-    store().commitStroke(studyId, diff, rect);
+    store().commitStroke(studyId, diff.pack(rect));
   });
 }
 
@@ -161,6 +162,77 @@ describe('SegmentsSection', () => {
     await user.click(btn('Undo last stroke'));
     expect(store().study('A').undoDepth).toBe(0);
     expect(btn('Undo last stroke')).toBeDisabled();
+  });
+
+  it('Escape in the name field restores the name it had when focused', async () => {
+    const user = userEvent.setup();
+    render(<SegmentsSection studyId="A" />);
+    await user.click(btn('Add segment'));
+    const name = within(region()).getByRole('textbox', { name: 'Name of segment 1' });
+    await user.click(name);
+    await user.type(name, ' edited');
+    expect(store().study('A').segments[0]?.name).toBe('Segment 1 edited');
+    await user.keyboard('{Escape}');
+    expect(store().study('A').segments[0]?.name).toBe('Segment 1');
+    expect(name).toHaveValue('Segment 1');
+  });
+
+  it('an emptied or duplicate name falls back to the segment’s own number (names stay unique)', async () => {
+    const user = userEvent.setup();
+    render(<SegmentsSection studyId="A" />);
+    for (let k = 0; k < 3; k += 1) await user.click(btn('Add segment'));
+    await user.click(btn('Delete Segment 1'));
+    // Segment 2 is now first in the list: an empty name must not become "Segment 1".
+    const first = within(region()).getByRole('textbox', { name: 'Name of segment 1' });
+    await user.clear(first);
+    fireEvent.blur(first);
+    expect(
+      store()
+        .study('A')
+        .segments.map((x) => x.name),
+    ).toEqual(['Segment 2', 'Segment 3']);
+    const second = within(region()).getByRole('textbox', { name: 'Name of segment 2' });
+    await user.clear(second);
+    await user.type(second, 'Segment 2');
+    fireEvent.blur(second);
+    const names = store()
+      .study('A')
+      .segments.map((x) => x.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(within(region()).getAllByRole('button', { name: /^Delete / })).toHaveLength(2);
+  });
+
+  it('when a click disables its own button, focus moves to a neighbour, not the body', async () => {
+    const user = userEvent.setup();
+    render(<SegmentsSection studyId="A" />);
+    paint('A', [4.5, 4.5]);
+    await user.click(btn('Undo last stroke'));
+    expect(btn('Undo last stroke')).toBeDisabled();
+    expect(btn('Clear segments')).toHaveFocus();
+    for (let k = 0; k < MAX_SEGMENTS - 2; k += 1) await user.click(btn('Add segment'));
+    expect(btn('Add segment')).toBeEnabled();
+    await user.click(btn('Add segment'));
+    expect(btn('Add segment')).toBeDisabled();
+    expect(
+      within(region()).getByRole('textbox', { name: `Name of segment ${MAX_SEGMENTS}` }),
+    ).toHaveFocus();
+  });
+
+  it('the status region stays rendered when empty and re-announces a repeated refusal', () => {
+    render(<SegmentsSection studyId="A" />);
+    expect(status()).toHaveClass('sr-only');
+    expect(status()).not.toHaveClass('empty:hidden');
+    act(() => {
+      store().prepareStroke('A', 5000, 5000);
+    });
+    expect(status()).toHaveTextContent(TOO_LARGE_NOTICE);
+    expect(status()).not.toHaveClass('sr-only');
+    const node = status().firstElementChild;
+    act(() => {
+      store().prepareStroke('A', 5000, 5000);
+    });
+    expect(status()).toHaveTextContent(TOO_LARGE_NOTICE);
+    expect(status().firstElementChild).not.toBe(node);
   });
 
   it('for non-CT images the HU presets are disabled and the stored-values hint shows', () => {
