@@ -72,6 +72,8 @@ export type ToolbarItem = {
   expanded?: boolean;
   controls?: string;
   attention?: boolean;
+  /** A menu whose items include the active tool (below 900px): tinted like an active tool. */
+  holdsActive?: boolean;
   items?: ToolbarItem[];
 };
 

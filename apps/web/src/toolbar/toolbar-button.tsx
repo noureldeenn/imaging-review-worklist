@@ -56,7 +56,7 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, Props>(function Toolb
           // The dot is visual; its meaning reaches assistive tech as a description
           // (the accessible name stays the visible label).
           aria-description={item.attention ? ATTENTION_DESCRIPTION : undefined}
-          className={cn(base, className)}
+          className={cn(base, item.holdsActive && 'text-primary', className)}
           onFocus={(e) => {
             onFocus?.(e);
             suppressPointerFocusTooltip(e);

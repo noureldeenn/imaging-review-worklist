@@ -74,6 +74,8 @@ describe('Measurement tools in the toolbar', () => {
     const viewer = commandsMock();
     renderToolbar({ viewer, view: { ...IDLE_VIEW, tool: 'ellipse' } }, true);
     expect(screen.getAllByRole('button')).toHaveLength(7);
+    // The active tool is inside More, so More is tinted like an active tool.
+    expect(button('More')).toHaveClass('text-primary');
     for (const name of [...MEASURE, 'Delete']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }

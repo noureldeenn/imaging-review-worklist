@@ -146,7 +146,7 @@ export function hitTest(
 
 export type LabelAnchor = { x: number; y: number; anchor: 'start' | 'middle' | 'end' };
 
-const LABEL_OFFSET = 14;
+const LABEL_OFFSET = 16;
 const LABEL_ROOM = 96;
 
 const anchorFor = (dx: number): LabelAnchor['anchor'] =>

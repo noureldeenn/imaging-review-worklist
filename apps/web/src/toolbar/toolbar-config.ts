@@ -208,7 +208,10 @@ function resolveItem(spec: ToolbarItemSpec, ctx: ToolbarContext): ToolbarItem {
     disabled: !enabled,
     onSelect: () => spec.run?.(ctx),
   };
-  if (items) item.items = items;
+  if (items) {
+    item.items = items;
+    if (items.some((child) => child.pressed)) item.holdsActive = true;
+  }
   if (spec.kind === 'tool') item.pressed = spec.isActive?.(ctx) ?? false;
   if (spec.checkable) item.checked = spec.isActive?.(ctx) ?? false;
   if (spec.panel) {
