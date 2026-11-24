@@ -2,29 +2,41 @@ import { ImageOff, LoaderCircle } from 'lucide-react';
 import { useDicomViewer } from './use-dicom-viewer';
 import { ViewerControls } from './viewer-controls';
 import { ViewerMetadata } from './viewer-metadata';
+import { ViewerReadout } from './viewer-readout';
+import {
+  ARIA_KEYSHORTCUTS,
+  SHORTCUTS_DESCRIPTION_ID,
+  ShortcutsDescription,
+} from './viewer-shortcuts';
 
 export function StudyViewer({ studyId }: { studyId: string }) {
-  const { containerRef, state, error, metadata, windowLevel, setWindowLevel, resetView } =
-    useDicomViewer(studyId);
+  const viewer = useDicomViewer(studyId);
+  const { containerRef, state, error, metadata, windowLevel, view } = viewer;
   return (
     <div className="study-viewer overflow-hidden rounded-lg border bg-viewer">
       <ViewerControls
         windowLevel={windowLevel}
+        view={view}
         disabled={state !== 'ready'}
-        onWindowLevel={setWindowLevel}
-        onReset={resetView}
+        onWindowLevel={viewer.setWindowLevel}
+        actions={viewer}
       />
+      <ShortcutsDescription />
       {/* Overlays are siblings of the viewport, never children, and nothing here animates
           transforms or opacity: Cornerstone owns the viewport and sizes its canvas to it. */}
       <div className="relative">
         {/* Cornerstone owns this element's children (its canvas); React renders none. */}
         <div
           ref={containerRef}
-          className="viewport relative h-[min(60vh,420px)] min-[900px]:h-[clamp(280px,58vh,620px)] w-full overflow-hidden bg-viewer"
+          className="viewport relative h-[min(60vh,420px)] min-[900px]:h-[clamp(280px,58vh,620px)] w-full touch-none overflow-hidden bg-viewer outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           data-testid="viewport"
           role="img"
           aria-label={`DICOM image for ${studyId}`}
+          aria-describedby={SHORTCUTS_DESCRIPTION_ID}
+          aria-keyshortcuts={ARIA_KEYSHORTCUTS}
+          tabIndex={0}
         />
+        {state === 'ready' && <ViewerReadout view={view} />}
         {state === 'loading' && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <p

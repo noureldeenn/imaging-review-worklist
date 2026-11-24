@@ -1,17 +1,17 @@
-import { Maximize } from 'lucide-react';
-import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { ViewerToolbar, type ToolbarActions } from './viewer-toolbar';
 import { WL_MAX, WL_MIN, WW_MAX, WW_MIN, type WindowLevel } from './viewer-session';
+import type { ViewTransform } from './viewport-controller';
 
 type Props = {
   windowLevel: WindowLevel | null;
+  view: ViewTransform;
   disabled: boolean;
   onWindowLevel(ww: number, wl: number): void;
-  onReset(): void;
+  actions: ToolbarActions;
 };
 
-// Below 900px the toolbar stacks: Fit / Reset, then one full-width row per slider
+// Below 900px the controls stack: the wrapping toolbar, then one full-width row per slider
 // (label above the track, value right-aligned). The 44px-tall range input gives the
 // thumb a touch-sized hit area; the visible track stays thin.
 const slider =
@@ -31,69 +31,57 @@ function SliderValue({ value }: { value: string }) {
   );
 }
 
-export function ViewerControls({ windowLevel, disabled, onWindowLevel, onReset }: Props) {
+export function ViewerControls({ windowLevel, view, disabled, onWindowLevel, actions }: Props) {
   const ww = windowLevel?.ww ?? WW_MIN;
   const wl = windowLevel?.wl ?? 0;
   const off = disabled || windowLevel === null;
   return (
-    <div className="viewer-controls flex flex-col gap-1 border-b bg-card px-3 py-2 min-[900px]:flex-row min-[900px]:flex-wrap min-[900px]:items-center min-[900px]:gap-x-4 min-[900px]:gap-y-2 min-[900px]:px-2 min-[900px]:py-1.5">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="self-start"
-            disabled={off}
-            onClick={onReset}
-          >
-            <Maximize aria-hidden="true" />
-            Fit / Reset
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Restore the default window/level and zoom</TooltipContent>
-      </Tooltip>
-      {/* Inputs are direct children of their labels so the label text stays exact. */}
-      <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
-        <Label className={field}>
-          Window width
-          <input
-            type="range"
-            className={slider}
-            min={WW_MIN}
-            max={WW_MAX}
-            step={1}
-            value={ww}
-            disabled={off}
-            aria-valuetext={`${ww}`}
-            onChange={(e) => onWindowLevel(Number(e.target.value), wl)}
-          />
-        </Label>
-        {windowLevel && <SliderValue value={`${ww}`} />}
+    <div className="viewer-controls flex flex-col gap-2 border-b bg-card px-3 py-2 min-[900px]:gap-1.5 min-[900px]:px-2 min-[900px]:py-1.5">
+      <ViewerToolbar view={view} disabled={off} actions={actions} />
+      {/* Sliders: one row on desktop, stacked full-width rows below 900px. */}
+      <div className="flex min-w-0 flex-col gap-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-4">
+        {/* Inputs are direct children of their labels so the label text stays exact. */}
+        <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
+          <Label className={field}>
+            Window width
+            <input
+              type="range"
+              className={slider}
+              min={WW_MIN}
+              max={WW_MAX}
+              step={1}
+              value={ww}
+              disabled={off}
+              aria-valuetext={`${ww}`}
+              onChange={(e) => onWindowLevel(Number(e.target.value), wl)}
+            />
+          </Label>
+          {windowLevel && <SliderValue value={`${ww}`} />}
+        </div>
+        <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
+          <Label className={field}>
+            Window level
+            <input
+              type="range"
+              className={slider}
+              min={WL_MIN}
+              max={WL_MAX}
+              step={1}
+              value={wl}
+              disabled={off}
+              aria-valuetext={`${wl}`}
+              onChange={(e) => onWindowLevel(ww, Number(e.target.value))}
+            />
+          </Label>
+          {windowLevel && <SliderValue value={`${wl}`} />}
+        </div>
+        <output
+          className="viewer-wl hidden min-w-28 font-mono text-xs text-muted-foreground tabular-nums min-[900px]:block"
+          aria-live="off"
+        >
+          {windowLevel ? `W ${ww} / L ${wl}` : ''}
+        </output>
       </div>
-      <div className="relative min-w-0 min-[900px]:flex min-[900px]:flex-1">
-        <Label className={field}>
-          Window level
-          <input
-            type="range"
-            className={slider}
-            min={WL_MIN}
-            max={WL_MAX}
-            step={1}
-            value={wl}
-            disabled={off}
-            aria-valuetext={`${wl}`}
-            onChange={(e) => onWindowLevel(ww, Number(e.target.value))}
-          />
-        </Label>
-        {windowLevel && <SliderValue value={`${wl}`} />}
-      </div>
-      <output
-        className="viewer-wl hidden min-w-28 font-mono text-xs text-muted-foreground tabular-nums min-[900px]:block"
-        aria-live="off"
-      >
-        {windowLevel ? `W ${ww} / L ${wl}` : ''}
-      </output>
     </div>
   );
 }
