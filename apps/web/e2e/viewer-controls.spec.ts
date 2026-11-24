@@ -196,6 +196,16 @@ test('after using every control, five close/reopen cycles leave no handlers', as
     await page.getByTestId('viewport').press('r');
     await page.mouse.wheel(0, -200);
     await button(page, 'Fit / Reset').click();
+    // Ready-to-ready switches rebind the same viewport element: still exactly one engine.
+    for (const id of ['study-002', 'study-001']) {
+      await openStudy(page, id);
+      await expect(readout(page)).toHaveText('Zoom 100% · Rot 0°');
+      const switched = await stats(page);
+      expect(switched.engines).toBe(1);
+      expect(switched.observers).toBe(1);
+      expect(switched.elementListeners).toBe(open.elementListeners);
+      await button(page, 'Zoom in').click();
+    }
     await closeViewer(page);
   }
 
@@ -205,34 +215,57 @@ test('after using every control, five close/reopen cycles leave no handlers', as
   expect(s.elementListeners).toBe(baseline.elementListeners);
 });
 
-test.describe('mobile', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+test('a scrollbar-sized resize keeps the zoom, a real resize refits', async ({ page }) => {
+  await openGradient(page);
+  await button(page, 'Zoom in').click();
+  await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
+  const size = page.viewportSize() ?? { width: 1280, height: 720 };
 
-  test('toolbar wraps without horizontal overflow and has 44px targets', async ({ page }) => {
-    await openGradient(page);
-    const toolbar = page.getByRole('toolbar', { name: 'Image tools' });
-    await expect(toolbar).toBeVisible();
-    const m = await page.evaluate(() => {
-      const de = document.documentElement;
-      const tb = document.querySelector<HTMLElement>('[role="toolbar"]');
-      if (!tb) throw new Error('toolbar missing');
-      const targets = [...tb.querySelectorAll('button, summary')].map((e) => {
-        const r = e.getBoundingClientRect();
-        return { name: e.getAttribute('aria-label') ?? e.textContent, w: r.width, h: r.height };
-      });
-      return {
-        page: de.scrollWidth - de.clientWidth,
-        toolbar: tb.scrollWidth - tb.clientWidth,
-        right: Math.max(...[...tb.children].map((c) => c.getBoundingClientRect().right)),
-        clientWidth: de.clientWidth,
-        small: targets.filter((t) => t.w < 44 || t.h < 44),
-        count: targets.length,
-      };
-    });
-    expect(m.page).toBe(0);
-    expect(m.toolbar).toBe(0);
-    expect(m.right).toBeLessThanOrEqual(m.clientWidth);
-    expect(m.count).toBe(12);
-    expect(m.small).toEqual([]);
-  });
+  await page.setViewportSize({ width: size.width - 12, height: size.height });
+  await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
+  await expect(readout(page)).toHaveText('Zoom 125% · Rot 0°');
+
+  await page.setViewportSize({ width: 900, height: size.height });
+  await expect(readout(page)).toHaveText('Zoom 100% · Rot 0°');
+  await expect.poll(async () => (await canvasPixels(page)).mean).toBeGreaterThan(5);
 });
+
+for (const width of [360, 390, 768, 820]) {
+  test.describe(`toolbar at ${width}px`, () => {
+    test.use({ viewport: { width, height: 844 } });
+
+    test('wraps without horizontal overflow and has 44px targets', async ({ page }) => {
+      await openGradient(page);
+      await expect(page.getByRole('toolbar', { name: 'Image tools' })).toBeVisible();
+      const m = await page.evaluate(() => {
+        const de = document.documentElement;
+        const tb = document.querySelector<HTMLElement>('[role="toolbar"]');
+        if (!tb) throw new Error('toolbar missing');
+        // Measure the controls themselves: below 900px their groups are
+        // `display: contents` wrappers with empty boxes.
+        const targets = [...tb.querySelectorAll('button, summary')].map((e) => {
+          const r = e.getBoundingClientRect();
+          return {
+            name: e.getAttribute('aria-label') ?? e.textContent,
+            w: r.width,
+            h: r.height,
+            right: r.right,
+          };
+        });
+        return {
+          page: de.scrollWidth - de.clientWidth,
+          toolbar: tb.scrollWidth - tb.clientWidth,
+          right: Math.max(...targets.map((t) => t.right)),
+          clientWidth: de.clientWidth,
+          small: targets.filter((t) => t.w < 44 || t.h < 44).map((t) => t.name),
+          count: targets.length,
+        };
+      });
+      expect(m.page).toBe(0);
+      expect(m.toolbar).toBe(0);
+      expect(m.right).toBeLessThanOrEqual(m.clientWidth);
+      expect(m.count).toBe(12);
+      expect(m.small).toEqual([]);
+    });
+  });
+}
