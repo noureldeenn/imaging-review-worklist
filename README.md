@@ -97,19 +97,19 @@ Other behaviour worth knowing:
 
 The toolbar above the image offers the basic controls of a diagnostic viewer. The required Fit / Reset button and the Window width / Window level sliders are unchanged.
 
-| Control                     | Button                         | Key (viewport focused) | Notes                                                                                |
-| --------------------------- | ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
-| Window/Level tool (default) | Window/Level tool (toggle)     | `W`                    | Left-drag: right/left widens/narrows the window, down/up raises/lowers the level     |
-| Pan tool                    | Pan tool (toggle)              | `P`                    | Left-drag moves the image                                                            |
-| Zoom tool                   | Zoom tool (toggle)             | `Z`                    | Left-drag up/down zooms about the press point                                        |
-| Zoom in / out               | Zoom in, Zoom out              | `+` or `=`, `-`        | 1.25x steps, clamped to 10%-2000% of fit                                             |
-| Rotate                      | Rotate left, Rotate right      | `Shift+R`, `R`         | 90 degree steps                                                                      |
-| Flip                        | Flip horizontal, Flip vertical | `H`, `V`               | Flips what is on screen, also after a rotation                                       |
-| Invert                      | Invert (toggle)                | `I`                    | Greyscale inversion                                                                  |
-| Pan by keyboard             |                                | Arrow keys             | 10% of the viewport per press; the page does not scroll                              |
-| Fit / Reset                 | Fit / Reset                    | `0`                    | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool) |
+| Control                     | Button                         | Key (viewport focused) | Notes                                                                                                                         |
+| --------------------------- | ------------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Window/Level tool (default) | Window/Level tool (toggle)     | `W`                    | Left-drag: right/left widens/narrows the window, down/up raises/lowers the level                                              |
+| Pan tool                    | Pan tool (toggle)              | `P`                    | Left-drag moves the image                                                                                                     |
+| Zoom tool                   | Zoom tool (toggle)             | `Z`                    | Left-drag up/down zooms about the press point                                                                                 |
+| Zoom in / out               | Zoom in, Zoom out              | `+` or `=`, `-`        | 1.25x steps, clamped to 10%-2000% of fit                                                                                      |
+| Rotate                      | Rotate left, Rotate right      | `Shift+R`, `R`         | 90 degree steps                                                                                                               |
+| Flip                        | Flip horizontal, Flip vertical | `H`, `V`               | Flips what is on screen, also after a rotation                                                                                |
+| Invert                      | Invert (toggle)                | `I`                    | Greyscale inversion relative to the image as loaded; MONOCHROME1 files load with the correct polarity and Reset returns to it |
+| Pan by keyboard             |                                | Arrow keys             | 10% of the viewport per press; the page does not scroll                                                                       |
+| Fit / Reset                 | Fit / Reset                    | `0`                    | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool)                                          |
 
-Always on: the mouse wheel zooms about the cursor, middle-button drag pans and right-button drag zooms. On touch, one finger uses the active tool and two fingers pinch to zoom and drag to pan. Click or tab to the image to use the keys; a **Shortcuts** disclosure lists them, and screen readers get the same list through the viewport's description. A readout in the image corner shows `Zoom 150% · Rot 90°` plus `Inverted`, `Flipped H` and `Flipped V` badges. The flip badges name the image's own axes, which Cornerstone mirrors before rotating, so after a quarter turn **Flip vertical** shows `Flipped H`. A container resize refits the image (zoom and pan return to 100%) and keeps rotation, flips and invert.
+Always on: the mouse wheel zooms about the cursor, middle-button drag pans and right-button drag zooms. On touch, one finger uses the active tool and two fingers pinch to zoom and drag to pan. Click or tab to the image to use the keys; a **Shortcuts** disclosure lists them, and screen readers get the same list through the viewport's description. A readout in the image corner shows `Zoom 150% · Rot 90°` plus `Inverted`, `Flipped H` and `Flipped V` badges. The flip badges name the image's own axes, which Cornerstone mirrors before rotating, so after a quarter turn **Flip vertical** shows `Flipped H`. A real container resize (more than 8 px, or a width-only change of more than 20 px, measured from the size the image was last fitted to) refits zoom and pan; smaller changes such as a scrollbar appearing keep the zoom and the point at the centre. Rotation, flips, invert and window/level are kept either way.
 
 Out of scope, because the brief excludes them: measurements and annotations, 3D/MPR, cine and multi-series navigation. The controls are our own pointer, wheel and keyboard handlers over the Cornerstone camera API, not `@cornerstonejs/tools` ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)). Their listeners are bound only once the current image has loaded and are counted in `window.__viewerStats`.
 
@@ -213,10 +213,10 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 | `npm run lint`            | clean                                                                                                                                                |
 | `npm run typecheck`       | clean                                                                                                                                                |
 | `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 49 tests in 8 files, web 61 tests in 12 files (110 total)                                                                                  |
+| `npm run verify`          | pass: API 49 tests in 8 files, web 70 tests in 13 files (119 total)                                                                                  |
 | `npm run build`           | pass; entry 8.1 kB + vendor 113.8 kB gzip, Cornerstone (928 kB gzip) loaded lazily                                                                   |
 | `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
-| `npm run test:e2e`        | 15 passed (Playwright, chromium, real API and real viewer; 7 of them cover the viewer controls)                                                      |
+| `npm run test:e2e`        | 19 passed (Playwright, chromium, real API and real viewer; 11 of them cover the viewer controls)                                                     |
 | `npm run app:up` smoke    | `/api/health` 200, `/api/readyz` 200, `/docs` 200, `/api/studies/study-001/file` 200 `application/dicom`, study-001 renders at http://localhost:8080 |
 
 ## Design decisions and trade-offs
