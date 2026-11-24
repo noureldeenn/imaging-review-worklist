@@ -2,8 +2,8 @@
 
 Two reviewers (`reviewer-a`, `reviewer-b`) share a worklist of DICOM studies. Each study can be claimed exactly once, opened in a real viewer (Cornerstone3D, rendering the actual pixels) and completed with a review note. The interesting parts are the ones the brief calls out: ownership that stays correct across two API processes, a UI that recovers safely from stale data, and a viewer that handles late loads, switching and closing without leaking. NestJS + Prisma + PostgreSQL on the back, Vite + React 18 + TanStack Query + Tailwind v4 on the front.
 
-![Worklist at 1440px](docs/screenshots/01-worklist-1440.png)
-![A study open in the viewer](docs/screenshots/02-study-open-1440.png)
+![A study open in the viewer-first layout at 1440px](docs/screenshots/01-viewer-1440.png)
+![The worklist drawer over the viewer, review panel collapsed](docs/screenshots/02-worklist-drawer-1440.png)
 
 Synthetic software-testing exercise. Not for diagnostic use.
 
@@ -63,8 +63,8 @@ Tests and e2e only ever write to `imaging_test`; your development data in `imagi
 ## How to use it
 
 1. Open http://localhost:5173. The top-right **Reviewer** switch picks who you are (Reviewer A or Reviewer B). There is no login; the choice is the identity sent with every claim and completion.
-2. Click a row to open a study. Anyone may look at any study, claimed or not. The image appears in the viewer with the controls described in [Viewer controls](#viewer-controls).
-3. As Reviewer A, open an **Unassigned** study and press **Claim**. It becomes **InReview** and Reviewer A owns it.
+2. The app is viewer-first, like OHIF: a slim title bar, one toolbar row and one big viewer that fills the rest of the window. With nothing selected the **Worklist** drawer is open on the left, with the Status and Modality filters. Click a row (or focus it and press Enter) to open a study; the drawer closes and the image fills the viewer. The **Worklist** toolbar button brings the list back (Esc or a click outside closes it again). Anyone may look at any study, claimed or not. The viewer controls are described in [Viewer controls](#viewer-controls).
+3. The **Review** panel on the right holds the study header, **Claim**, the note form or saved note and the status messages. At 1280px and wider it sits beside the viewer and is open by default (collapsing it widens the image); between 900 and 1279px it floats over the viewer; below 900px it is a bottom sheet. The **Review** toolbar button opens and closes it. As Reviewer A, open an **Unassigned** study and press **Claim**. It becomes **InReview** and Reviewer A owns it.
 4. Write a note in the completion form and press **Complete**. The study becomes **Completed**, the owner and the trimmed note are kept. Drafts are kept per study while you move around, and survive network errors.
 5. Switch to Reviewer B and open the same study. B sees the saved note as a read-only card and cannot complete it. While a study is still InReview, B sees who owns it and gets no form.
 
@@ -87,31 +87,33 @@ Other behaviour worth knowing:
 
 - **No upload button.** The brief excludes uploads, and the file endpoint resolves only a fixed server-side map from study to fixture file (ADR 0004). There is no way for a client to name a path.
 - **Completed is terminal.** One owner, one note. A second reviewer (or the owner again) cannot claim or complete it: the API answers `409 INVALID_STATE`, and the UI shows the saved note instead of a form.
-- **Close viewer** clears the selection and disposes the viewer. On narrow screens the list and detail are separate panes with a Back button.
+- **Close viewer** (in the Review panel header) clears the selection, disposes the viewer and reopens the worklist drawer.
+- **Feedback is never hidden.** If the Review panel is collapsed when a Claim or Complete finishes or a `412` arrives, it opens again so the message and **Refresh and continue** are visible; a stale study also puts a dot on the Review button.
 
 ## Viewer controls
 
-![Viewer toolbar at 1440px](docs/screenshots/15-viewer-controls-1440.png)
-![Zoomed, rotated and inverted](docs/screenshots/16-viewer-transformed-1440.png)
-![Toolbar wrapped at 390px](docs/screenshots/17-viewer-controls-390.png)
+![Review panel as an overlay at 1024px](docs/screenshots/03-review-overlay-1024.png)
+![Phone viewer at 390px](docs/screenshots/04-viewer-390.png)
+![Review bottom sheet at 390px](docs/screenshots/05-review-sheet-390.png)
+![Stale-version notice](docs/screenshots/06-stale-412-1440.png)
 
-The toolbar above the image offers the basic controls of a diagnostic viewer. The required Fit / Reset button and the Window width / Window level sliders are unchanged.
+One toolbar row in the OHIF style: icon above a short label with the shortcut in it, the active tool in teal, groups separated by thin rules, and a **More** menu for the rest. Left to right: `Worklist`, `Review` | `Levels (L)`, `Pan (P)`, `Zoom (Z)` (one active tool) | `Zoom in`, `Zoom out` | `Fit / Reset` | `More` (`Invert (I)`, `Rotate left (<)`, `Rotate right (>)`, `Flip horizontal (H)`, `Flip vertical (V)`). Below 900px the row is seven 44px icon buttons (Worklist, Review, Levels, Pan, Zoom, Fit / Reset, More) and Zoom in / Zoom out move into More. Every button has a tooltip with its name and shortcut. The toolbar is one tab stop (Left/Right, Home/End move inside it) and the More menu follows the WAI-ARIA menu-button pattern (Up/Down, Home/End, Esc). It is built from a config array in `apps/web/src/toolbar/toolbar-config.ts`. The required Fit / Reset button and the Window width / Window level sliders stay; the sliders live in the info strip under the image.
 
-| Control                     | Button                         | Key (viewport focused) | Notes                                                                                                                         |
-| --------------------------- | ------------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Window/Level tool (default) | Window/Level tool (toggle)     | `W`                    | Left-drag: right/left widens/narrows the window, down/up raises/lowers the level                                              |
-| Pan tool                    | Pan tool (toggle)              | `P`                    | Left-drag moves the image                                                                                                     |
-| Zoom tool                   | Zoom tool (toggle)             | `Z`                    | Left-drag up/down zooms about the press point                                                                                 |
-| Zoom in / out               | Zoom in, Zoom out              | `+` or `=`, `-`        | 1.25x steps, clamped to 10%-2000% of fit                                                                                      |
-| Rotate                      | Rotate left, Rotate right      | `Shift+R`, `R`         | 90 degree steps                                                                                                               |
-| Flip                        | Flip horizontal, Flip vertical | `H`, `V`               | Flips what is on screen, also after a rotation                                                                                |
-| Invert                      | Invert (toggle)                | `I`                    | Greyscale inversion relative to the image as loaded; MONOCHROME1 files load with the correct polarity and Reset returns to it |
-| Pan by keyboard             |                                | Arrow keys             | 10% of the viewport per press; the page does not scroll                                                                       |
-| Fit / Reset                 | Fit / Reset                    | `0`                    | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool)                                          |
+| Control          | Toolbar                                      | Key (viewport focused)          | Notes                                                                                                                         |
+| ---------------- | -------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Levels (default) | Levels (L), a tool                           | `L` (`W` also works)            | Left-drag: right/left widens/narrows the window, down/up raises/lowers the level                                              |
+| Pan              | Pan (P), a tool                              | `P`                             | Left-drag moves the image                                                                                                     |
+| Zoom             | Zoom (Z), a tool                             | `Z`                             | Left-drag up/down zooms about the press point                                                                                 |
+| Zoom in / out    | Zoom in, Zoom out (in More below 900px)      | `+` or `=`, `-`                 | 1.25x steps, clamped to 10%-2000% of fit                                                                                      |
+| Rotate           | More: Rotate left (<), Rotate right (>)      | `<` `,` `Shift+R` / `>` `.` `R` | 90 degree steps                                                                                                               |
+| Flip             | More: Flip horizontal (H), Flip vertical (V) | `H`, `V`                        | Flips what is on screen, also after a rotation                                                                                |
+| Invert           | More: Invert (I), a checkbox item            | `I`                             | Greyscale inversion relative to the image as loaded; MONOCHROME1 files load with the correct polarity and Reset returns to it |
+| Pan by keyboard  |                                              | Arrow keys                      | 10% of the viewport per press; the page does not scroll                                                                       |
+| Fit / Reset      | Fit / Reset                                  | `0`                             | Restores zoom, pan, rotation, flips, invert and window/level together (not the tool)                                          |
 
-Always on: the mouse wheel zooms about the cursor, middle-button drag pans and right-button drag zooms. On touch, one finger uses the active tool and two fingers pinch to zoom and drag to pan. Click or tab to the image to use the keys; a **Shortcuts** disclosure lists them, and screen readers get the same list through the viewport's description. A readout in the image corner shows `Zoom 150% · Rot 90°` plus `Inverted`, `Flipped H` and `Flipped V` badges. The flip badges name the image's own axes, which Cornerstone mirrors before rotating, so after a quarter turn **Flip vertical** shows `Flipped H`. A real container resize (more than 8 px, or a width-only change of more than 20 px, measured from the size the image was last fitted to) refits zoom and pan; smaller changes such as a scrollbar appearing keep the zoom and the point at the centre. Rotation, flips, invert and window/level are kept either way.
+Always on: the mouse wheel zooms about the cursor, middle-button drag pans and right-button drag zooms. On touch, one finger uses the active tool and two fingers pinch to zoom and drag to pan. Click or tab to the image to use the keys; a **Shortcuts** disclosure in the info strip lists them (desktop), and screen readers get the same list through the viewport's description. The info strip under the image (never over it) shows the file metadata line, a readout such as `Zoom 150% · Rot 90°` with `Inverted` and `Mirrored` badges, and the two sliders. `Mirrored` appears when the image shows exactly one flip (two flips are a half turn, not a mirror image). A real container resize (more than 8 px, or a width-only change of more than 20 px, measured from the size the image was last fitted to) refits zoom and pan; smaller changes such as a scrollbar appearing keep the zoom and the point at the centre. Rotation, flips, invert and window/level are kept either way.
 
-Out of scope, because the brief excludes them: measurements and annotations, 3D/MPR, cine and multi-series navigation. The controls are our own pointer, wheel and keyboard handlers over the Cornerstone camera API, not `@cornerstonejs/tools` ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)). Their listeners are bound only once the current image has loaded and are counted in `window.__viewerStats`.
+Not part of this version: measurements and annotations, segmentation, 3D/MPR, cine and multi-series navigation (measurements and segmentation are planned as later tasks). The controls are our own pointer, wheel and keyboard handlers over the Cornerstone camera API, not `@cornerstonejs/tools` ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)). Their listeners are bound only once the current image has loaded and are counted in `window.__viewerStats`.
 
 ## Architecture
 
@@ -188,21 +190,21 @@ Every load takes a sequence token; a result carrying an old token (the user swit
 
 ## Brief-to-test map
 
-| Brief section                                            | What it requires                                                                       | Proven by                                                                                                                                              |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 01 Worklist and API                                      | Seed (8 studies, both reviewers), filters, ordering, 100 cap, DTO, file                | `apps/api/test/seed.test.ts`, `studies-read.test.ts`, `study-file.test.ts`                                                                             |
-| 01 Claim, complete, note rules, terminal, version bump   | Transitions, 1-1000 trimmed note, retained owner and note                              | `apps/api/test/studies-mutations.test.ts`                                                                                                              |
-| 02 Validation order and error codes                      | 400, 404, 412 with current, 409, 403, safe messages                                    | `apps/api/test/studies-mutations.test.ts`, `hardening.test.ts`                                                                                         |
-| 02 One winner across two processes                       | One 200 and one 412; works across processes                                            | `studies-mutations.test.ts` (concurrent claims), `scripts/contention-smoke.ts` (`npm run test:contention`)                                             |
-| 02 Failed completion changes nothing; persistence        | No fields change; survives restart                                                     | `studies-mutations.test.ts`, `apps/api/test/persistence.test.ts`                                                                                       |
-| 03 Drafts, 412, errors, stale responses, duplicates      | Per-study drafts, 412 recovery, out-of-order filters, pending guard                    | `apps/web/src/components/study-panel.test.tsx`, `worklist.test.tsx`, `apps/web/e2e/review-flow.spec.ts`                                                |
-| 03 Loading, empty, success, error states; keyboard       | States and labelled, keyboard-usable controls; pane focus                              | `worklist.test.tsx`, `study-panel.test.tsx`, `app-shell.test.tsx`, `study-header.test.tsx`                                                             |
-| 04 Real viewer, fixtures, W/L, Fit/Reset, resize         | Real pixels differ per fixture, W/L changes them, Reset restores, resize               | `apps/web/e2e/viewer-render.spec.ts`                                                                                                                   |
-| 04 Corrupt file and recovery                             | Visible error, list usable, next valid study renders                                   | `viewer-render.spec.ts`, `apps/web/src/viewer/use-dicom-viewer.test.ts`, `viewer-error-boundary.test.tsx`                                              |
-| 04 Switching, closing, disposal, no PHI                  | Only the current image; dispose on close; no raw tags displayed or logged              | `use-dicom-viewer.test.ts`, `apps/web/e2e/viewer-lifecycle.spec.ts`, `apps/api/test/logging.test.ts`                                                   |
-| 05 Lifecycle: five close/reopen cycles                   | No handler or engine accumulation                                                      | `use-dicom-viewer.test.ts`, `viewer-lifecycle.spec.ts` (`window.__viewerStats`)                                                                        |
-| Extra: viewer controls (zoom, pan, rotate, flip, invert) | Each control changes real pixels, undo and Fit / Reset restore them; no listener leaks | `apps/web/e2e/viewer-controls.spec.ts`, `use-viewport-interactions.test.ts`, `viewer-math.test.ts`, `viewer-toolbar.test.tsx`, `study-viewer.test.tsx` |
-| 05 README, migrations, seed, ordinary startup keeps data | Setup/start/reset/test commands; idempotent seed                                       | This file; `apps/api/prisma/migrations`, `apps/api/test/seed.test.ts` (re-seed never overwrites)                                                       |
+| Brief section                                            | What it requires                                                                       | Proven by                                                                                                                                                                     |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 Worklist and API                                      | Seed (8 studies, both reviewers), filters, ordering, 100 cap, DTO, file                | `apps/api/test/seed.test.ts`, `studies-read.test.ts`, `study-file.test.ts`                                                                                                    |
+| 01 Claim, complete, note rules, terminal, version bump   | Transitions, 1-1000 trimmed note, retained owner and note                              | `apps/api/test/studies-mutations.test.ts`                                                                                                                                     |
+| 02 Validation order and error codes                      | 400, 404, 412 with current, 409, 403, safe messages                                    | `apps/api/test/studies-mutations.test.ts`, `hardening.test.ts`                                                                                                                |
+| 02 One winner across two processes                       | One 200 and one 412; works across processes                                            | `studies-mutations.test.ts` (concurrent claims), `scripts/contention-smoke.ts` (`npm run test:contention`)                                                                    |
+| 02 Failed completion changes nothing; persistence        | No fields change; survives restart                                                     | `studies-mutations.test.ts`, `apps/api/test/persistence.test.ts`                                                                                                              |
+| 03 Drafts, 412, errors, stale responses, duplicates      | Per-study drafts, 412 recovery, out-of-order filters, pending guard                    | `apps/web/src/components/study-panel.test.tsx`, `worklist.test.tsx`, `apps/web/e2e/review-flow.spec.ts`                                                                       |
+| 03 Loading, empty, success, error states; keyboard       | States and labelled, keyboard-usable controls; drawer/panel focus                      | `worklist.test.tsx`, `study-panel.test.tsx`, `layout.test.tsx`, `use-layout-state.test.ts`, `study-header.test.tsx`, `apps/web/e2e/layout.spec.ts`                            |
+| 04 Real viewer, fixtures, W/L, Fit/Reset, resize         | Real pixels differ per fixture, W/L changes them, Reset restores, resize               | `apps/web/e2e/viewer-render.spec.ts`                                                                                                                                          |
+| 04 Corrupt file and recovery                             | Visible error, list usable, next valid study renders                                   | `viewer-render.spec.ts`, `apps/web/src/viewer/use-dicom-viewer.test.ts`, `viewer-error-boundary.test.tsx`                                                                     |
+| 04 Switching, closing, disposal, no PHI                  | Only the current image; dispose on close; no raw tags displayed or logged              | `use-dicom-viewer.test.ts`, `apps/web/e2e/viewer-lifecycle.spec.ts`, `apps/api/test/logging.test.ts`                                                                          |
+| 05 Lifecycle: five close/reopen cycles                   | No handler or engine accumulation                                                      | `use-dicom-viewer.test.ts`, `viewer-lifecycle.spec.ts` (`window.__viewerStats`)                                                                                               |
+| Extra: viewer controls (zoom, pan, rotate, flip, invert) | Each control changes real pixels, undo and Fit / Reset restore them; no listener leaks | `apps/web/e2e/viewer-controls.spec.ts`, `use-viewport-interactions.test.ts`, `viewer-math.test.ts`, `toolbar.test.tsx`, `viewer-info-strip.test.tsx`, `study-viewer.test.tsx` |
+| 05 README, migrations, seed, ordinary startup keeps data | Setup/start/reset/test commands; idempotent seed                                       | This file; `apps/api/prisma/migrations`, `apps/api/test/seed.test.ts` (re-seed never overwrites)                                                                              |
 
 ## Test results
 
@@ -213,17 +215,19 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 | `npm run lint`            | clean                                                                                                                                                |
 | `npm run typecheck`       | clean                                                                                                                                                |
 | `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 49 tests in 8 files, web 70 tests in 13 files (119 total)                                                                                  |
-| `npm run build`           | pass; entry 8.1 kB + vendor 113.8 kB gzip, Cornerstone (928 kB gzip) loaded lazily                                                                   |
+| `npm run verify`          | pass: API 49 tests in 8 files, web 92 tests in 15 files (141 total)                                                                                  |
+| `npm run build`           | pass; entry 12.6 kB + vendor 113.8 kB gzip, Cornerstone (928 kB gzip) loaded lazily                                                                  |
 | `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
-| `npm run test:e2e`        | 19 passed (Playwright, chromium, real API and real viewer; 11 of them cover the viewer controls)                                                     |
+| `npm run test:e2e`        | 26 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 7 the layout)                                               |
 | `npm run app:up` smoke    | `/api/health` 200, `/api/readyz` 200, `/docs` 200, `/api/studies/study-001/file` 200 `application/dicom`, study-001 renders at http://localhost:8080 |
+
+The viewer-first layout change re-ran lint, typecheck, format, the web tests, the web build and the e2e suite on 2026-11-24 against a local PostgreSQL 17 (Docker was unavailable on the machine that day). The API was not changed, so the API row is from the earlier run.
 
 ## Design decisions and trade-offs
 
 - **Worklist modality vs file modality.** The worklist `modality` is study metadata and is what the filter uses; it can differ from the file's own DICOM modality tag (all three fixtures are `OT`). That lets the modality filter be meaningful with only two image files. The viewer strip is labelled as file metadata and shows the file's value.
 - **CPU rendering.** Cornerstone runs in CPU mode so canvas pixels are deterministic and readable in headless Chromium; the e2e tests assert on real pixels. The cost is speed on large or multi-frame images, which are out of scope ([ADR 0003](docs/adr/0003-cpu-rendering-for-deterministic-tests.md)).
-- **Close viewer and Back.** "Close" in the brief's lifecycle rules is an explicit **Close viewer** button. Below 900px the app is master/detail and Back returns to the list, restoring scroll and focus.
+- **Viewer-first layout.** The image gets the whole window; the worklist is an overlay drawer (it never resizes the viewport) and the review panel pushes only where there is room (>= 1280px). "Close" in the brief's lifecycle rules is the explicit **Close viewer** button in the Review panel header. The toolbar reaches the lazily loaded viewer through a small store (`viewer-bridge.ts`), so Cornerstone stays out of the main bundle.
 - **412 blocks both actions.** After a stale response, Claim and Complete stay disabled for that study until "Refresh and continue", so a user never submits against state they have not seen.
 - **OHIF not used.** OHIF shows patient identifiers by default and ships measurement and multi-series features that are out of scope, and its internals do not expose the listener and engine counts the lifecycle tests assert on. A thin viewer on `@cornerstonejs/core` keeps the metadata whitelist provable ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)).
 - **Unpruned API image.** The API runtime image copies the workspace `node_modules` because the seed (`tsx`) and the Prisma CLI run at container start and are dev dependencies. The image is large; acceptable for a demo.
@@ -297,11 +301,13 @@ apps/
     Dockerfile
   web/                    Vite + React app
     src/
-      components/         worklist, study panel, header, completion form, ui/ primitives
-      viewer/             Cornerstone hook, controls, error boundary, viewer stats
+      components/         app shell, worklist, study panel, header, completion form, ui/ primitives
+      layout/             layout state, worklist drawer, review panel, dismiss/focus hooks
+      toolbar/            data-driven toolbar config, renderer (roving focus), More menu
+      viewer/             Cornerstone hook, info strip, viewer bridge, error boundary, viewer stats
       queries/ stores/    TanStack Query hooks, session and draft store
       api/                typed client and Zod schemas
-    e2e/                  Playwright specs (render, lifecycle, viewer controls, review flow)
+    e2e/                  Playwright specs (render, lifecycle, viewer controls, layout, review flow)
     Dockerfile, nginx.conf
 docker/                   docker-compose.yml (postgres, plus api and web under the app profile)
 fixtures/                 gradient.dcm, checkerboard.dcm, corrupt.dcm
@@ -309,7 +315,7 @@ scripts/                  contention-smoke.ts (two-process race), import-dicom*.
 docs/
   architecture.md         component and sequence diagrams
   adr/                    architecture decision records
-  screenshots/            UI screenshots at 1440, 820, 768, 390 and 360 px
+  screenshots/            UI screenshots at 1440, 1024 and 390 px
 .github/workflows/ci.yml  lint, typecheck, tests, build
 ```
 
