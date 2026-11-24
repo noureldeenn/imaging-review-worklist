@@ -11,7 +11,7 @@ const base =
   'relative inline-flex shrink-0 flex-col items-center justify-center gap-1 rounded-md px-2 text-foreground/85 outline-none select-none ' +
   'transition-colors duration-150 hover:bg-white/8 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-black ' +
   'disabled:pointer-events-none disabled:opacity-35 aria-pressed:text-primary aria-expanded:text-primary ' +
-  'h-14 min-w-14 max-[1099px]:min-w-12 max-[1099px]:px-1 max-[899px]:size-11 max-[899px]:min-w-11 max-[899px]:px-0';
+  'h-14 min-w-14 max-[1099px]:min-w-11 max-[1099px]:px-1 max-[899px]:size-11 max-[899px]:min-w-11 max-[899px]:px-0';
 
 export const ATTENTION_DESCRIPTION = 'Needs attention: new review feedback';
 

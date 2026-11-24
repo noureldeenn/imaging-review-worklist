@@ -6,7 +6,7 @@ import { useSegmentStore } from './segment-store';
 
 type Props = {
   studyId: string;
-  /** Changes on every camera change and resize: the overlay re-projects then. */
+  /** The view transform (kept for parity with the measurement overlay; any render re-projects). */
   revision: unknown;
   getMapper(): ImageMapper | null;
   /** Columns x rows of the loaded image (the mask size). */
@@ -22,9 +22,10 @@ const EMPTY: Segment[] = [];
  * controller publish and resize, reading the viewport only through the guarded
  * mapper getter. Nothing animates. See `mask-renderer` for the drawing.
  */
-export function SegmentationOverlay({ studyId, revision, getMapper, imageSize }: Props) {
+export function SegmentationOverlay({ studyId, getMapper, imageSize }: Props) {
   const segments = useSegmentStore((s) => s.byStudy[studyId]?.segments ?? EMPTY);
-  const opacity = useSegmentStore((s) => s.opacity);
+  // Subscribed only so an opacity change re-renders (and so re-projects).
+  useSegmentStore((s) => s.opacity);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<MaskRenderer | null>(null);
   const { width, height } = imageSize;
@@ -41,7 +42,10 @@ export function SegmentationOverlay({ studyId, revision, getMapper, imageSize }:
   }, [studyId, width, height, getMapper]);
 
   useEffect(() => renderer.current?.recolor(), [segments]);
-  useLayoutEffect(() => renderer.current?.project(), [revision, opacity]);
+  // Every render of the viewer follows a controller publish (zoom, pan, rotation,
+  // flip, resize) or an opacity change: re-project before paint. A pan keeps the
+  // same `view` object, so this deliberately has no dependency list.
+  useLayoutEffect(() => renderer.current?.project());
 
   return (
     <canvas

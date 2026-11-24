@@ -6,7 +6,7 @@ import type { ToolbarGroup } from './toolbar-types';
 // 900-1099px: tighter spacing so the full desktop row (with the measurement
 // tools) still fits without scrolling.
 const separator =
-  'mx-1 h-9 w-px shrink-0 self-center bg-white/15 max-[1099px]:mx-0.5 max-[899px]:hidden';
+  'mx-1 h-9 w-px shrink-0 self-center bg-white/15 max-[1099px]:mx-0 max-[899px]:hidden';
 
 /**
  * Renders resolved toolbar groups as one WAI-ARIA toolbar with a roving tab
