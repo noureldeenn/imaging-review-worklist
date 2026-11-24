@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CircleAlert, CircleCheck, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react';
 import { ApiRequestError, NetworkError } from '../api/client';
 import { studiesKeys } from '../queries/studies-queries';
@@ -18,11 +18,14 @@ export function MutationStatus({
   version,
   outcome,
   onRefreshed,
+  onFeedback,
 }: {
   studyId: string;
   version: number;
   outcome: MutationOutcome;
   onRefreshed: () => void;
+  /** New feedback appeared (the layout reveals a collapsed review panel). */
+  onFeedback?: () => void;
 }) {
   const queryClient = useQueryClient();
   const isBlocked = useSessionStore((s) => s.blocked[studyId] === true);
@@ -32,15 +35,23 @@ export function MutationStatus({
     ref.current = el;
   };
 
-  // The line sits below the viewer, often off-screen on phones: bring new feedback into view.
+  const feedbackRef = useRef(onFeedback);
+  useLayoutEffect(() => {
+    feedbackRef.current = onFeedback;
+  });
+
+  // New feedback must reach the user: reveal a collapsed review panel, then
+  // bring the line into view inside it.
   const feedbackKey = isBlocked
     ? `blocked:${version}`
     : outcome.kind === 'success'
       ? outcome.message
       : outcome.kind;
   useEffect(() => {
+    if (feedbackKey === 'idle') return;
+    feedbackRef.current?.();
     const el = ref.current;
-    if (feedbackKey === 'idle' || !el || typeof el.scrollIntoView !== 'function') return;
+    if (!el || typeof el.scrollIntoView !== 'function') return;
     el.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   }, [feedbackKey]);
 
@@ -50,7 +61,7 @@ export function MutationStatus({
       <div
         ref={setRef}
         role="status"
-        className="flex animate-panel-in flex-col gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 sm:flex-row sm:items-center sm:justify-between"
+        className="flex animate-panel-in flex-col gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3"
       >
         <div className="flex items-start gap-2.5 text-sm text-warning">
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
@@ -63,7 +74,7 @@ export function MutationStatus({
           type="button"
           variant="warning"
           size="sm"
-          className="self-start sm:self-auto"
+          className="self-start"
           onClick={() => {
             unblock(studyId);
             onRefreshed();

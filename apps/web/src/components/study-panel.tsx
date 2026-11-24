@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useClaimStudy, useCompleteStudy } from '../queries/study-mutations';
 import { useStudy } from '../queries/studies-queries';
 import { useSessionStore } from '../stores/session-store';
-import { StudyViewerLazy } from '../viewer/study-viewer-lazy';
 import { CompletionForm } from './completion-form';
 import { MutationStatus, type MutationOutcome } from './mutation-status';
 import { ReviewNoteHint, SavedReviewNote } from './review-note';
@@ -13,7 +12,16 @@ import { PendingIcon } from './pending-icon';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 
-export function StudyPanel({ studyId }: { studyId: string }) {
+type Props = {
+  studyId: string;
+  /** Move focus to the study heading when it changes (floating panel open). */
+  autoFocus?: boolean;
+  /** Called when Claim/Complete feedback or a stale-version notice appears. */
+  onFeedback?: () => void;
+};
+
+/** Review side of a study: header, Claim, note form or saved note, mutation feedback. */
+export function StudyPanel({ studyId, autoFocus = false, onFeedback }: Props) {
   const reviewerId = useSessionStore((s) => s.reviewerId);
   const isBlocked = useSessionStore((s) => s.blocked[studyId] === true);
   const selectStudy = useSessionStore((s) => s.selectStudy);
@@ -43,7 +51,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
         </p>
         <Skeleton className="h-7 w-56" />
         <Skeleton className="h-5 w-40" />
-        <Skeleton className="aspect-[4/3] max-h-[480px] w-full" />
+        <Skeleton className="h-24 w-full" />
       </div>
     );
   }
@@ -62,7 +70,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
 
   return (
     <article aria-label={`Study ${study.id}`} className="flex flex-col gap-3 p-3 sm:p-4">
-      <StudyHeader study={study} owner={owner}>
+      <StudyHeader study={study} owner={owner} autoFocus={autoFocus}>
         <Button
           type="button"
           disabled={!canClaim}
@@ -83,7 +91,6 @@ export function StudyPanel({ studyId }: { studyId: string }) {
           Close viewer
         </Button>
       </StudyHeader>
-      <StudyViewerLazy studyId={studyId} />
       {study.reviewNote !== null ? (
         <SavedReviewNote study={study} note={study.reviewNote} reviewerId={reviewerId} />
       ) : canComplete ? (
@@ -107,6 +114,7 @@ export function StudyPanel({ studyId }: { studyId: string }) {
         studyId={study.id}
         version={study.version}
         outcome={outcome}
+        onFeedback={onFeedback}
         onRefreshed={() => {
           claim.reset();
           complete.reset();

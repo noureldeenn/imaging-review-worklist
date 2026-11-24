@@ -16,7 +16,13 @@ type Pinch = { distance: number; mid: Point };
 /** Number of listeners `bindViewportInteractions` adds to the element. */
 export const INTERACTION_LISTENERS = 8;
 
-const TOOL_KEYS: Record<string, ViewerTool> = { w: 'windowLevel', p: 'pan', z: 'zoom' };
+// OHIF keys (l, p, z); `w` is kept as an alias of `l` from the first toolbar.
+const TOOL_KEYS: Record<string, ViewerTool> = {
+  l: 'windowLevel',
+  w: 'windowLevel',
+  p: 'pan',
+  z: 'zoom',
+};
 const WHEEL_LINE_PX = 16;
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -139,6 +145,8 @@ export function bindViewportInteractions(
     if (tool) c.setTool(tool);
     else if (key === '+' || key === '=') c.zoomBy(ZOOM_STEP);
     else if (key === '-' || key === '_') c.zoomBy(1 / ZOOM_STEP);
+    else if (key === '<' || key === ',') c.rotateBy(-90);
+    else if (key === '>' || key === '.') c.rotateBy(90);
     else if (key === 'r') c.rotateBy(e.shiftKey ? -90 : 90);
     else if (key === 'h') c.flip('h');
     else if (key === 'v') c.flip('v');

@@ -29,7 +29,7 @@ export class ViewerErrorBoundary extends Component<Props, State> {
       return (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="m-4 w-fit rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           The viewer crashed. Close and reopen the study.
         </p>
