@@ -7,6 +7,8 @@ Two reviewers (`reviewer-a`, `reviewer-b`) share a worklist of DICOM studies. Ea
 
 Synthetic software-testing exercise. Not for diagnostic use.
 
+> **Scope: the brief vs optional additions.** The brief's requirements (worklist and API, ownership across processes, safe UI recovery, the real viewer with its lifecycle rules) are the core and are proven by the original tests. The viewer controls, the viewer-first layout and toolbar, measurements, segmentation and the local DICOM import are optional additions requested beyond the brief (which lists measurements, uploads, 3D and multi-series as out of scope). Each is isolated from the graded paths and has its own lifecycle (no-leak) tests; none persists data or calls a new API endpoint. The one API addition is the regex-gated `local:<uuid>` file-key resolver, used only by the local import.
+
 ## Quick start
 
 Prerequisites: Node.js >= 22 (`.nvmrc` pins 24), npm >= 10, Docker (for PostgreSQL).
@@ -85,7 +87,7 @@ The seeded studies (created by `db:migrate` if absent; the dates are 1 minute ap
 
 Other behaviour worth knowing:
 
-- **No upload button.** The brief excludes uploads, and the file endpoint resolves only a fixed server-side map from study to fixture file (ADR 0004). There is no way for a client to name a path.
+- **No upload button.** The brief excludes uploads, and the file endpoint resolves only a fixed server-side map from study to fixture file (ADR 0004), plus server-generated `local:<uuid>` keys (regex-checked, resolved inside `LOCAL_DICOM_DIR`) written by the dev-only local import. There is no way for a client to name a path.
 - **Completed is terminal.** One owner, one note. A second reviewer (or the owner again) cannot claim or complete it: the API answers `409 INVALID_STATE`, and the UI shows the saved note instead of a form.
 - **Close viewer** (in the Review panel header) clears the selection, disposes the viewer and reopens the worklist drawer.
 - **Feedback is never hidden.** If the Review panel is collapsed when a Claim or Complete finishes or a `412` arrives, it opens again so the message and **Refresh and continue** are visible; a stale study also puts a dot on the Review button.
@@ -128,7 +130,7 @@ The brief puts measurements and segmentation-like extras out of scope; both were
 
 - **Tools.** `Length`: press, drag, release between two points. `Angle`: click three points, the second is the vertex (a rubber band follows the pointer; a first press that drags draws the first arm). `Ellipse` and `Rectangle`: press, drag, release across the bounding box. A press that moves less than 4 px draws nothing. `Esc` cancels a shape in progress; a second finger, a tool change, a study switch or closing the viewer cancels it too.
 - **Labels.** Next to each shape, white on a dark halo so they read on black and white: Length `12.3 mm`, Angle `67.2°` (0-180°, `—` when an arm has no length), Ellipse and Rectangle as area `1,234 mm²` (π·a·b and w·h). Millimetres come from the file's Pixel Spacing (0028,0030), row and column spacing applied separately; without it (the synthetic studies) values are in image pixels (`45 px`, `px²`). No patient tag is read; the metadata strip is unchanged.
-- **Selecting and editing.** A press within a few pixels of an existing shape's outline (6 px with a mouse, 14 px with touch) selects that shape with ANY tool, including Levels, Pan and Zoom, instead of starting a window/level change, a pan or a new shape (cyan, larger handles). A press on a handle of the selected shape drags that handle (a line end, a rectangle corner, an ellipse axis end) instead of changing W/L or panning. `Delete`/`Backspace` on the focused image or `Delete ▾ > Delete selected` removes it.
+- **Selecting and editing.** A press within a few pixels of an existing shape's outline (6 px with a mouse, 14 px with touch) selects that shape with the navigation and measurement tools (Levels, Pan, Zoom, Length, Angle, Ellipse, Rectangle) instead of starting a window/level change, a pan or a new shape (cyan, larger handles). A press on a handle of the selected shape drags that handle (a line end, a rectangle corner, an ellipse axis end) instead of changing W/L or panning. `Delete`/`Backspace` on the focused image or `Delete ▾ > Delete selected` removes it. The segmentation tools (Brush, Smart brush, Eraser) do not select: they paint over measurements.
 - **Attached to the image.** Points are stored in image pixel coordinates and re-projected after every zoom, pan, rotation, flip and resize, so a shape stays on the same pixels (the e2e test checks the grey level under each end). Wheel zoom, middle-drag pan and two-finger pinch keep working while a measurement tool is active.
 - **Per study, in memory.** Each study has its own list (A → B → A shows A's again), up to 100 per study. Nothing is persisted: not to the server, not to localStorage; a reload clears them. `Fit / Reset` restores the view only; `Clear measurements` removes the shapes.
 - **Accessible path.** Drawing is pointer-only, as in OHIF. The Review panel's **Measurements** section lists the open study's shapes numbered per type (`Length 1, 12.3 mm`, so two equal shapes never share a name), selects one on the image when chosen, and has a `Delete Length 1, 12.3 mm` button per item plus `Clear measurements`; all of it works by keyboard and screen reader. After a delete, focus moves to the next item (else the previous, else the section heading), and a polite status region announces `Length 1, 12.3 mm deleted` or `Measurements cleared`. A refused 101st shape is announced there and shown briefly in the info strip. The SVG overlay itself is `aria-hidden` and takes no pointer events (selection is hit-tested by geometry in the viewport's own handlers).
@@ -141,7 +143,7 @@ The brief puts measurements and segmentation-like extras out of scope; both were
 
 Manual 2D segmentation in the style of OHIF's `Segment ▾` menu, added on request beyond the brief and isolated from the graded viewer ([ADR 0006](docs/adr/0006-first-party-segmentation-overlay.md)). This is software testing, not diagnostic use.
 
-- **Tools.** `Brush (B)`: press and drag to paint the active segment with a filled disc. `Smart brush`: the same, but writes only pixels whose value lies inside the chosen range. `Eraser (E)` (in `Delete ▾`): removes any segment's paint under the disc. One stroke is press to release; fast drags are interpolated so they leave no gaps. `Esc` drops the stroke in progress (so do a second finger, a tool change, a study switch and closing the viewer). `Ctrl+Z` / `Cmd+Z` on the focused image, or `Undo last stroke` in the panel, reverts the last stroke (20 per study). The first stroke creates `Segment 1` if there is none. Wheel zoom, middle-drag pan and two-finger pinch keep working while a segmentation tool is active.
+- **Tools.** `Brush (B)`: press and drag to paint the active segment with a filled disc. `Smart brush`: the same, but writes only pixels whose value lies inside the chosen range. `Eraser (E)` (in `Delete ▾`): removes any segment's paint under the disc, including paint of hidden segments. One stroke is press to release; fast drags are interpolated so they leave no gaps. `Esc` drops the stroke in progress (so do a second finger, a tool change, a study switch and closing the viewer). `Ctrl+Z` / `Cmd+Z` on the focused image, or `Undo last stroke` in the panel, reverts the last stroke (20 per study). The first stroke creates `Segment 1` if there is none. Wheel zoom, middle-drag pan and two-finger pinch keep working while a segmentation tool is active.
 - **Brush size and opacity.** The Segments panel sets the brush radius in image pixels (`Brush size`, 1-100, default 10) and the overlay `Opacity` (10-100 %, default 50 %).
 - **Smart brush ranges.** Presets in Hounsfield units for CT (HU = stored value x Rescale Slope + Rescale Intercept): `Adipose [-190, -30]`, `Soft tissue [-29, 150]`, `Bone [150, 3000]`, and `Custom` with inclusive Minimum / Maximum fields. They are indicative values for software testing, **not diagnostic thresholds**. For any other modality (the synthetic studies are `OT`) the presets are disabled, the range applies to stored pixel values, and the panel says so (`Thresholds apply to stored pixel values`). MONOCHROME1 images paint the pixels as shown (the mask is in image pixels, independent of display polarity).
 - **One label per pixel.** A study has up to 8 segments and one label mask: painting a segment replaces another segment's paint there, as in OHIF.
@@ -175,6 +177,7 @@ Architecture decision records:
 - [ADR 0003: CPU rendering for deterministic tests](docs/adr/0003-cpu-rendering-for-deterministic-tests.md)
 - [ADR 0004: Fixed file map instead of uploads](docs/adr/0004-fixed-file-map-instead-of-uploads.md)
 - [ADR 0005: First-party measurement overlay](docs/adr/0005-first-party-measurement-overlay.md)
+- [ADR 0006: First-party segmentation overlay](docs/adr/0006-first-party-segmentation-overlay.md)
 
 Component and sequence diagrams are in [docs/architecture.md](docs/architecture.md); the decisions behind them are the ADRs above.
 
@@ -246,20 +249,20 @@ Every load takes a sequence token; a result carrying an old token (the user swit
 
 ## Test results
 
-Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
+Recorded on 2026-11-24 (Windows 11, Node 24). The first full run used Docker Desktop with PostgreSQL 15; every row marked (PG 17) was re-run later the same day against a private local PostgreSQL 17 because Docker was unavailable.
 
-| Gate                      | Result                                                                                                                                               |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run lint`            | clean                                                                                                                                                |
-| `npm run typecheck`       | clean                                                                                                                                                |
-| `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 49 tests in 8 files (earlier run, API unchanged since), web 240 tests in 32 files (run twice after the segmentation change)                |
-| `npm run build`           | pass; entry 20.1 kB + vendor 115.7 kB gzip, lazy viewer chunk 13.0 kB and Cornerstone (928 kB gzip) loaded lazily                                    |
-| `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
-| `npm run test:e2e`        | 42 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 8 the layout, 7 the measurements, 8 the segmentation)       |
-| `npm run app:up` smoke    | `/api/health` 200, `/api/readyz` 200, `/docs` 200, `/api/studies/study-001/file` 200 `application/dicom`, study-001 renders at http://localhost:8080 |
+| Gate                      | Result                                                                                                                                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run lint`            | clean                                                                                                                                                                                                                                          |
+| `npm run typecheck`       | clean                                                                                                                                                                                                                                          |
+| `npm run format:check`    | clean                                                                                                                                                                                                                                          |
+| `npm run verify`          | pass (PG 17): API 71 tests in 10 files, web 250 tests in 34 files (web run twice)                                                                                                                                                              |
+| `npm run build`           | pass; entry 20.8 kB + vendor 115.7 kB gzip, lazy viewer chunk 13.1 kB and Cornerstone (928 kB gzip) loaded lazily                                                                                                                              |
+| `npm run test:contention` | `rounds=20 ok=20` (PG 17; earlier also on PG 15 and on a freshly created, empty test database)                                                                                                                                                 |
+| `npm run test:e2e`        | 42 passed (Playwright, chromium, real API and real viewer; 11 cover the viewer controls, 8 the layout, 7 the measurements, 8 the segmentation)                                                                                                 |
+| `npm run app:up` smoke    | Run once on PG 15/Docker BEFORE the layout, measurement, segmentation and local-import changes: `/api/health`, `/api/readyz`, `/docs` 200, file 200 `application/dicom`, study-001 rendered at :8080. Not re-run since: Docker was unavailable |
 
-The viewer-first layout change, the measurements change and the segmentation change each re-ran lint, typecheck, format, the web tests, the web build and the e2e suite on 2026-11-24 against a local PostgreSQL 17 (Docker was unavailable on the machine that day). The API was not changed by any of them, so the API suite was not re-run and its count is from the earlier run.
+The viewer-first layout, measurements and segmentation changes each re-ran lint, typecheck, format, the web tests, the web build and the e2e suite against the private PostgreSQL 17. The local DICOM import changed the API (the `local:<uuid>` file-key resolver, its config and tests), so the final pass also re-ran the API suite (71 tests in 10 files, including `study-file-local.test.ts` and `import-dicom-plan.test.ts`) and the contention script on PostgreSQL 17.
 
 ## Design decisions and trade-offs
 
@@ -268,7 +271,7 @@ The viewer-first layout change, the measurements change and the segmentation cha
 - **Viewer-first layout.** The image gets the whole window; the worklist is an overlay drawer (it never resizes the viewport) and the review panel pushes only where there is room (>= 1280px). "Close" in the brief's lifecycle rules is the explicit **Close viewer** button in the Review panel header. The toolbar reaches the lazily loaded viewer through a small store (`viewer-bridge.ts`), so Cornerstone stays out of the main bundle.
 - **412 blocks both actions.** After a stale response, Claim and Complete stay disabled for that study until "Refresh and continue", so a user never submits against state they have not seen.
 - **First-party measurements.** Measurements are a small SVG overlay and a pointer state machine routed through the viewport's existing handlers, not `@cornerstonejs/tools`: no new dependency, CPU-rendering safe, and the lifecycle counters stay exact ([ADR 0005](docs/adr/0005-first-party-measurement-overlay.md)).
-- **First-party segmentation.** In CPU mode Cornerstone 5.19.4's `StackViewport` refuses vtk actors (`addActor`/`addActors` throw), and stack labelmaps are drawn as actors, so the brush paints a one-byte-per-pixel label mask drawn on a canvas sibling and fed by the same eight viewport handlers ([ADR 0006](docs/adr/0006-first-party-segmentation-overlay.md)).
+- **First-party segmentation.** In CPU mode Cornerstone 5.19.4's `StackViewport` refuses vtk actors (`addActor`/`addActors` throw; verified in the core sources). That `@cornerstonejs/tools` stack labelmaps would therefore not render is an inference (the tools package was not installed or run; see ADR 0006). So the brush paints a one-byte-per-pixel label mask drawn on a canvas sibling and fed by the same eight viewport handlers ([ADR 0006](docs/adr/0006-first-party-segmentation-overlay.md)).
 - **OHIF not used.** OHIF shows patient identifiers by default and ships measurement and multi-series features that are out of scope, and its internals do not expose the listener and engine counts the lifecycle tests assert on. A thin viewer on `@cornerstonejs/core` keeps the metadata whitelist provable ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)).
 - **Unpruned API image.** The API runtime image copies the workspace `node_modules` because the seed (`tsx`) and the Prisma CLI run at container start and are dev dependencies. The image is large; acceptable for a demo.
 - **Hard-coded modality filter options.** The filter offers CT, MR, CR, US, DX, NM and OT from a constant in the web app instead of loading them from the API.
@@ -318,15 +321,16 @@ API_PROXY_TARGET=http://localhost:4100 npm -w apps/web run dev
 E2E_API_PORT=4100 npm run test:e2e
 ```
 
-| Variable            | Default                                                    | Used by                    | Meaning                                                                    |
-| ------------------- | ---------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `PORT`              | `4000`                                                     | API                        | API listen port                                                            |
-| `DATABASE_URL`      | `postgresql://imaging:imaging@localhost:5432/imaging`      | API, Prisma                | Development database                                                       |
-| `DATABASE_URL_TEST` | `postgresql://imaging:imaging@localhost:5432/imaging_test` | API tests, e2e, contention | Database used when `NODE_ENV=test`                                         |
-| `WEB_ORIGIN`        | `http://localhost:5173`                                    | API                        | The one origin CORS allows (the Docker stack sets `http://localhost:8080`) |
-| `API_DOCS_ENABLED`  | `true`                                                     | API                        | `false` removes `/docs` and `/docs/openapi.json`                           |
-| `API_PROXY_TARGET`  | `http://localhost:4000`                                    | Vite dev server            | Where `/api` is proxied; must match `PORT`                                 |
-| `E2E_API_PORT`      | `4000`                                                     | Playwright                 | Port of the API process Playwright starts                                  |
+| Variable            | Default                                                    | Used by                    | Meaning                                                                      |
+| ------------------- | ---------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| `PORT`              | `4000`                                                     | API                        | API listen port                                                              |
+| `DATABASE_URL`      | `postgresql://imaging:imaging@localhost:5432/imaging`      | API, Prisma                | Development database                                                         |
+| `DATABASE_URL_TEST` | `postgresql://imaging:imaging@localhost:5432/imaging_test` | API tests, e2e, contention | Database used when `NODE_ENV=test`                                           |
+| `WEB_ORIGIN`        | `http://localhost:5173`                                    | API                        | The one origin CORS allows (the Docker stack sets `http://localhost:8080`)   |
+| `API_DOCS_ENABLED`  | `true`                                                     | API                        | `false` removes `/docs` and `/docs/openapi.json`                             |
+| `API_PROXY_TARGET`  | `http://localhost:4000`                                    | Vite dev server            | Where `/api` is proxied; must match `PORT`                                   |
+| `E2E_API_PORT`      | `4000`                                                     | Playwright                 | Port of the API process Playwright starts                                    |
+| `LOCAL_DICOM_DIR`   | `<repo>/local-dicom`                                       | API, `import:dicom`        | Where the dev-only local import copies files and `local:<uuid>` keys resolve |
 
 A commented copy is in [.env.example](.env.example). The apps read these from the shell environment.
 

@@ -82,4 +82,5 @@ conflicts so the client can refresh without another call.
 - CPU rendering: deterministic pixels for tests, but slow for large or multi-frame
   images (ADR 0003).
 - The modality filter options are hard-coded in the web app rather than loaded from the API.
-- There is no upload endpoint; studies map to fixed fixture files (ADR 0004).
+- There is no upload endpoint; studies map to fixed fixture files, or to server-generated
+  `local:<uuid>` keys from the dev-only local import, resolved inside `LOCAL_DICOM_DIR` (ADR 0004).

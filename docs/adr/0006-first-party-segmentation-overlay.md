@@ -37,7 +37,8 @@ Build it in the app, under `apps/web/src/viewer/segmentation/`:
   diffs of all studies share a 64 MB budget; the least recently used studies are dropped
   first and their Segments panel says so. In memory only, never persisted.
 - **Undo**: each stroke is a sparse diff (changed indices + previous labels, 5 bytes per
-  pixel), 20 per study. Deleting a segment or clearing resets undo for that study.
+  pixel, recorded in growable typed arrays with a first-write bitset, so a whole-image
+  stroke cannot hit a `Map` size limit), 20 per study. Deleting a segment or clearing resets undo for that study.
 - **Painting** is a state machine fed by the viewport's existing eight handlers
   (`INTERACTION_LISTENERS` stays 8). Discs are stamped along an interpolated path; the smart
   brush gates on the displayed image's pixel data (`getCornerstoneImage().getPixelData()`,
@@ -48,12 +49,12 @@ Build it in the app, under `apps/web/src/viewer/segmentation/`:
   into an offscreen image-sized canvas (dirty rectangles, once per frame) and drawn with the
   image -> canvas affine derived from the viewport mapper at (0,0), (1,0), (0,1), which is
   exact for zoom, pan, quarter turns and flips because the CPU path maps pixel (c, r) to
-  [c, c+1) x [r, r+1). The offscreen canvas is freed on unmount.
+  [c, c+1) x [r, r+1).
 
 ## Consequences
 
 - No new dependency and no Cornerstone labelmap state; the five-cycle listener baseline holds.
-- Only 2D single-frame painting: no automatic/AI segmentation, DICOM-SEG import/export,
-  contours, 3D/MPR or persistence. Pixel-based area only (px², or mm² with Pixel Spacing).
-- Thresholds are indicative presets for software testing, not diagnostic values.
-- Removable by deleting the folder, the toolbar group, the Delete items and the panel section.
+- The overlay's offscreen RGBA canvas costs 4 bytes per image pixel (64 MB at 4096 x 4096) on top of the 1-byte mask; it exists only for the open study and is freed on unmount.
+- Only 2D single-frame painting: no automatic/AI segmentation, DICOM-SEG import/export, contours, 3D/MPR or persistence. Pixel-based area only (px², or mm² with Pixel Spacing).
+- Thresholds are indicative presets for software testing, not diagnostic values. Removable by
+  deleting the folder, the toolbar group, the Delete items and the panel section.

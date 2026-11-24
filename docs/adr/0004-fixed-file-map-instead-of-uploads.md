@@ -24,5 +24,9 @@ never supplies, and never sees, a filesystem path.
 - There is no upload endpoint, which matches the brief's scope.
 - Adding a new study image means adding a fixture and a map entry in code, which is a
   deliberate friction for a demo dataset.
+- The dev-only local import (`npm run import:dicom`) adds a second, server-generated key
+  form, `local:<uuid>`: it must match a strict regex and resolves to `<uuid>.dcm` inside
+  `LOCAL_DICOM_DIR` (checked again after resolution). Clients still never send a key or a
+  path; there is still no upload endpoint.
 - A real deployment would replace the map with object storage or a DICOMweb source behind
   the same `fileKey` abstraction.
