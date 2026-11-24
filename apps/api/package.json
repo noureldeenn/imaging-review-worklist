@@ -8,9 +8,9 @@
     "dev": "nest start --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "prisma:reset": "prisma migrate reset --force",
+    "prisma:deploy": "node prisma/with-db-env.cjs prisma migrate deploy",
+    "prisma:seed": "node prisma/with-db-env.cjs tsx prisma/seed.ts",
+    "prisma:reset": "node prisma/with-db-env.cjs prisma migrate reset --force",
     "db:reset:test": "tsx test/reset-test-db.ts",
     "db:migrate:test": "tsx test/migrate-test-db.ts"
   },
