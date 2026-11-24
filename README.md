@@ -19,7 +19,7 @@ npm run dev
 ```
 
 - Web app: http://localhost:5173
-- API docs (Swagger UI): http://localhost:4000/docs
+- API reference (Scalar): http://localhost:4000/docs
 - API: http://localhost:4000/api (health: `/api/health`, readiness: `/api/readyz`)
 
 If port 4000 is busy on your machine see [Port conflicts](#port-conflicts-and-environment-variables).
@@ -113,7 +113,7 @@ Architecture decision records:
 - [ADR 0003: CPU rendering for deterministic tests](docs/adr/0003-cpu-rendering-for-deterministic-tests.md)
 - [ADR 0004: Fixed file map instead of uploads](docs/adr/0004-fixed-file-map-instead-of-uploads.md)
 
-The full design is in [docs/superpowers/specs/2026-11-23-imaging-review-worklist-design.md](docs/superpowers/specs/2026-11-23-imaging-review-worklist-design.md).
+Component and sequence diagrams are in [docs/architecture.md](docs/architecture.md); the decisions behind them are the ADRs above.
 
 ## API summary
 
@@ -185,9 +185,9 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 | `npm run lint`            | clean                                                                                                                                                |
 | `npm run typecheck`       | clean                                                                                                                                                |
 | `npm run format:check`    | clean                                                                                                                                                |
-| `npm run verify`          | pass: API 43 tests in 8 files, web 35 tests in 7 files (78 total)                                                                                    |
+| `npm run verify`          | pass: API 49 tests in 8 files, web 38 tests in 8 files (87 total)                                                                                    |
 | `npm run build`           | pass                                                                                                                                                 |
-| `npm run test:contention` | `rounds=20 ok=20`                                                                                                                                    |
+| `npm run test:contention` | `rounds=20 ok=20` (also verified on a freshly created, empty test database)                                                                          |
 | `npm run test:e2e`        | 8 passed (Playwright, chromium, real API and real viewer)                                                                                            |
 | `npm run app:up` smoke    | `/api/health` 200, `/api/readyz` 200, `/docs` 200, `/api/studies/study-001/file` 200 `application/dicom`, study-001 renders at http://localhost:8080 |
 
@@ -199,7 +199,7 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 - **412 blocks both actions.** After a stale response, Claim and Complete stay disabled for that study until "Refresh and continue", so a user never submits against state they have not seen.
 - **OHIF not used.** OHIF shows patient identifiers by default and ships measurement and multi-series features that are out of scope, and its internals do not expose the listener and engine counts the lifecycle tests assert on. A thin viewer on `@cornerstonejs/core` keeps the metadata whitelist provable ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)).
 - **Unpruned API image.** The API runtime image copies the workspace `node_modules` because the seed (`tsx`) and the Prisma CLI run at container start and are dev dependencies. The image is large; acceptable for a demo.
-- **Hard-coded modality filter options.** The filter offers CT, MR and OT from a constant in the web app instead of loading them from the API.
+- **Hard-coded modality filter options.** The filter offers CT, MR, CR, US and OT from a constant in the web app instead of loading them from the API.
 - **Instrumentation always on.** The `window.__viewerStats` counters are tiny and carry no PHI, so they are present in all builds rather than only in a test build.
 
 ## PHI and security notes
@@ -260,7 +260,6 @@ docs/
   architecture.md         component and sequence diagrams
   adr/                    architecture decision records
   screenshots/            UI screenshots at 1440, 820, 768, 390 and 360 px
-  superpowers/specs/      design spec
 .github/workflows/ci.yml  lint, typecheck, tests, build
 ```
 
@@ -271,3 +270,12 @@ docs/
 - **Postgres is up but `imaging_test` is missing.** The compose init scripts only run on the first initialisation of the volume. Recreate it: `docker compose -f docker/docker-compose.yml down -v`, then `npm run db:up` and `npm run db:migrate`. This deletes all development data.
 - **Tests fail to connect.** Run `npm run db:up` first; `npm test`, `test:contention` and `test:e2e` need Postgres.
 - **Playwright cannot find a browser.** Run `npx playwright install chromium` once.
+
+## Known limitations
+
+- The window width and level sliders use fixed 16-bit ranges, so they are coarse for a 16-bit image; the keyboard arrow keys give precise steps.
+- The modality filter options are static (CT, MR, CR, US, OT), not loaded from the API.
+- One generic viewer failure message covers every load failure (corrupt, unsupported, network).
+- Completed is terminal with exactly one note, by design: no edit, release or reassignment.
+- The API Docker image is not pruned and is large.
+- The restart-persistence test recreates the Nest application on the same database inside one test process. Nothing is cached in memory, so this is equivalent to a restart; the contention script covers separate OS processes.
