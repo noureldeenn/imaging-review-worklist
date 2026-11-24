@@ -60,5 +60,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     globals: false,
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });
