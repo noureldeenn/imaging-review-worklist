@@ -25,6 +25,7 @@
     "@nestjs/swagger": "7.4.2",
     "@prisma/client": "5.22.0",
     "@scalar/nestjs-api-reference": "1.2.41",
+    "dicom-parser": "1.8.21",
     "helmet": "8.3.0",
     "nestjs-pino": "4.6.1",
     "pino": "9.14.0",

@@ -65,3 +65,15 @@ export function useCompleteStudy(studyId: string) {
     onError: (err, v) => handleMutationError(queryClient, v.id, err),
   });
 }
+
+export function useUploadStudy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['studies', 'upload'],
+    mutationFn: (file: File) => api.uploadStudy(file),
+    onSuccess: async (dto) => {
+      queryClient.setQueryData(studiesKeys.detail(dto.id), dto);
+      await queryClient.invalidateQueries({ queryKey: studiesKeys.lists });
+    },
+  });
+}

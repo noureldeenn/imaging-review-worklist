@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useRef } from 'react';
+import { UploadButton } from '../components/upload-button';
 import { Filters } from '../components/filters';
 import { Button } from '../components/ui/button';
 import { ScrollArea } from '../components/ui/scroll-area';
@@ -69,6 +70,9 @@ export function WorklistDrawer({ open, onClose }: { open: boolean; onClose(): vo
       </div>
       <div className="border-b border-white/10 p-3">
         <Filters />
+        <div className="mt-3">
+          <UploadButton />
+        </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 p-2">
         <Worklist />

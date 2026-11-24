@@ -8,10 +8,20 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { ApiError } from '../common/api-error';
 import { ApiErrorResponse, STUDY_REF, zodSchema } from '../common/openapi';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import {
@@ -23,10 +33,14 @@ import {
   type ListStudiesQueryInput,
   type StudyDto,
 } from './studies.dto';
+import { MAX_UPLOAD_BYTES } from './dicom-upload';
 import { StudiesService } from './studies.service';
 
 // @types/express is not installed; only setHeader is needed.
 type HeaderSetter = { setHeader(name: string, value: string | number): unknown };
+
+type UploadRequest = AsyncIterable<Buffer> & { headers: Record<string, string | undefined> };
+const tooLarge = () => new ApiError(413, 'REQUEST_REJECTED', 'The file is too large');
 
 const STUDY_OK = { schema: STUDY_REF };
 const NOT_FOUND = [
@@ -76,6 +90,30 @@ export class StudiesController {
     @Query(new ZodValidationPipe(ListStudiesQuery)) query: ListStudiesQueryInput,
   ): Promise<StudyDto[]> {
     return this.studies.list(query);
+  }
+
+  @Post('upload')
+  @ApiOperation({
+    summary: 'Upload one DICOM image (raw request body) as a new Unassigned study',
+  })
+  @ApiConsumes('application/dicom')
+  @ApiResponse({ status: 201, description: 'The new study', ...STUDY_OK })
+  @ApiErrorResponse(...BAD_REQUEST)
+  @ApiErrorResponse(413, 'File is larger than the upload limit', {
+    code: 'REQUEST_REJECTED',
+    message: 'The file is too large',
+  })
+  async upload(@Req() req: UploadRequest): Promise<StudyDto> {
+    const declared = Number(req.headers['content-length']);
+    if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) throw tooLarge();
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for await (const chunk of req) {
+      total += chunk.length;
+      if (total > MAX_UPLOAD_BYTES) throw tooLarge();
+      chunks.push(chunk);
+    }
+    return this.studies.upload(Buffer.concat(chunks));
   }
 
   @Get(':id/file')

@@ -80,6 +80,12 @@ export const api = {
     request(studiesPath(filters), StudyListDto),
   getStudy: (id: string): Promise<StudyDto> =>
     request(`/api/studies/${encodeURIComponent(id)}`, StudyDto),
+  uploadStudy: (file: File): Promise<StudyDto> =>
+    request('/api/studies/upload', StudyDto, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/dicom' },
+      body: file,
+    }),
   claim: (id: string, body: { reviewerId: string; expectedVersion: number }): Promise<StudyDto> =>
     request(`/api/studies/${encodeURIComponent(id)}/claim`, StudyDto, postJson(body)),
   complete: (

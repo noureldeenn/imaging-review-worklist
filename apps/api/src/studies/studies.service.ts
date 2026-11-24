@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { loadConfig } from '../config';
+import { validateDicomUpload } from './dicom-upload';
 import type { Prisma } from '@prisma/client';
 import { ApiError } from '../common/api-error';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,6 +51,30 @@ export class StudiesService {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
       }
+      throw err;
+    }
+  }
+
+  /** Stores a validated DICOM file and registers it as a new Unassigned study. */
+  async upload(bytes: Buffer): Promise<StudyDto> {
+    const { modality } = validateDicomUpload(bytes);
+    const uuid = randomUUID();
+    const dir = path.resolve(loadConfig().localDicomDir);
+    const file = path.join(dir, `${uuid}.dcm`);
+    await mkdir(dir, { recursive: true });
+    await writeFile(file, bytes);
+    try {
+      const row = await this.prisma.study.create({
+        data: {
+          id: `upload-${uuid.slice(0, 8)}`,
+          modality,
+          createdAt: new Date(),
+          fileKey: `local:${uuid}`,
+        },
+      });
+      return toStudyDto(row);
+    } catch (err) {
+      await rm(file, { force: true });
       throw err;
     }
   }
