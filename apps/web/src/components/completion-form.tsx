@@ -24,9 +24,11 @@ export function CompletionForm({
   const draft = useSessionStore((s) => s.drafts[study.id] ?? '');
   const isBlocked = useSessionStore((s) => s.blocked[study.id] === true);
   const setDraft = useSessionStore((s) => s.setDraft);
-  const valid = draft.trim().length >= 1 && draft.length <= MAX_NOTE_LENGTH;
+  // The API trims before checking 1-1000, so the UI counts the trimmed length too.
+  const length = draft.trim().length;
+  const valid = length >= 1 && length <= MAX_NOTE_LENGTH;
   const canComplete = valid && !isBlocked && !pending;
-  const over = draft.length > MAX_NOTE_LENGTH;
+  const over = length > MAX_NOTE_LENGTH;
 
   return (
     <Card className="animate-panel-in">
@@ -54,11 +56,11 @@ export function CompletionForm({
               id="note-count"
               className={cn(
                 'font-mono text-xs tabular-nums text-muted-foreground transition-colors',
-                draft.length >= NEAR_LIMIT && 'text-warning',
+                length >= NEAR_LIMIT && 'text-warning',
                 over && 'text-destructive',
               )}
             >
-              {draft.length}/{MAX_NOTE_LENGTH}
+              {length}/{MAX_NOTE_LENGTH}
             </small>
             <Button type="submit" disabled={!canComplete}>
               <PendingIcon pending={pending} icon={CheckCheck} />
