@@ -33,13 +33,13 @@ export class StudiesService {
 
   async getOne(id: string): Promise<StudyDto> {
     const row = await this.prisma.study.findUnique({ where: { id } });
-    if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', `Study ${id} not found`);
+    if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
     return toStudyDto(row);
   }
 
   async getFile(id: string): Promise<{ path: string; size: number }> {
     const row = await this.prisma.study.findUnique({ where: { id } });
-    if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', `Study ${id} not found`);
+    if (!row) throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
     const path = resolveStudyFile(row.fileKey);
     return { path, size: (await stat(path)).size };
   }

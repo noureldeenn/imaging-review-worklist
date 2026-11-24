@@ -18,7 +18,7 @@ export const FIXTURE_FILES: Record<FixtureKey, string> = {
 /** Maps a stored fileKey to an absolute path; never builds paths from input. */
 export function resolveStudyFile(fileKey: string): string {
   if (!Object.prototype.hasOwnProperty.call(FIXTURE_FILES, fileKey)) {
-    throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study file not found');
+    throw new ApiError(404, 'STUDY_NOT_FOUND', 'Study not found');
   }
   return FIXTURE_FILES[fileKey as FixtureKey];
 }

@@ -2,7 +2,13 @@ import { HttpException } from '@nestjs/common';
 import type { StudyDto } from '../studies/studies.dto';
 
 export type ApiErrorCode =
-  'VALIDATION_ERROR' | 'STUDY_NOT_FOUND' | 'STALE_VERSION' | 'INVALID_STATE' | 'NOT_OWNER';
+  | 'VALIDATION_ERROR'
+  | 'STUDY_NOT_FOUND'
+  | 'NOT_FOUND'
+  | 'STALE_VERSION'
+  | 'INVALID_STATE'
+  | 'NOT_OWNER'
+  | 'REQUEST_REJECTED';
 
 export interface ApiErrorBody {
   code: ApiErrorCode | 'INTERNAL';

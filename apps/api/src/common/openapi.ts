@@ -29,9 +29,11 @@ const API_ERROR_SCHEMA: JsonSchema = {
       enum: [
         'VALIDATION_ERROR',
         'STUDY_NOT_FOUND',
+        'NOT_FOUND',
         'STALE_VERSION',
         'INVALID_STATE',
         'NOT_OWNER',
+        'REQUEST_REJECTED',
         'INTERNAL',
       ],
     },
