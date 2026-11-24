@@ -1,3 +1,4 @@
+import type { MeasurementKind } from './annotations/measure-math';
 import {
   clampZoom,
   imageFlipAxis,
@@ -13,7 +14,8 @@ import {
   type WindowLevel,
 } from './viewer-session';
 
-export type ViewerTool = 'windowLevel' | 'pan' | 'zoom';
+/** Exclusive drag tools: navigation tools plus the measurement tools. */
+export type ViewerTool = 'windowLevel' | 'pan' | 'zoom' | MeasurementKind;
 
 /**
  * Display transform of the current image. Zoom is relative to fit (1 = 100 %);
@@ -237,6 +239,8 @@ export function createViewportController(
       const now = viewport.getCamera().focalPoint;
       if (centre && now)
         shiftFocalPoint(centre[0] - now[0], centre[1] - now[1], centre[2] - now[2]);
+      // Subscribers (the measurement overlay) re-project after every camera change.
+      publish();
     },
     dispose() {
       disposed = true;

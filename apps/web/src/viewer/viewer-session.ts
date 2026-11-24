@@ -1,4 +1,6 @@
 import { metaData } from '@cornerstonejs/core';
+import type { MappableViewport } from './annotations/image-mapper';
+import type { Spacing } from './annotations/measure-math';
 
 export type ViewerState = 'idle' | 'loading' | 'ready' | 'error';
 export type ViewerMetadataValue = {
@@ -39,7 +41,7 @@ export type StackViewportLike = {
   }): void;
   canvasToWorld(canvasPos: [number, number]): Point3;
   setViewPresentation(presentation: { rotation?: number }): void;
-};
+} & MappableViewport;
 
 export function imageIdFor(studyId: string): string {
   return `wadouri:/api/studies/${encodeURIComponent(studyId)}/file`;
@@ -86,6 +88,22 @@ export function readMetadata(imageId: string): ViewerMetadataValue | null {
     rows: Number(pixel?.rows ?? 0),
     columns: Number(pixel?.columns ?? 0),
   };
+}
+
+/**
+ * Pixel Spacing (0028,0030) through the loader's `imagePlaneModule`: row
+ * spacing (between rows) first, column spacing second. Null when the file has
+ * none (the loader then reports `usingDefaultValues` with 1/1, which must not
+ * be shown as millimetres). Technical tag only.
+ */
+export function readPixelSpacing(imageId: string): Spacing | null {
+  const plane = metaData.get('imagePlaneModule', imageId) as
+    { pixelSpacing?: unknown; usingDefaultValues?: unknown } | undefined;
+  const raw = plane?.pixelSpacing;
+  if (!Array.isArray(raw) || plane?.usingDefaultValues === true) return null;
+  const [row, column] = raw.map(Number);
+  const ok = (v: number | undefined): v is number => v !== undefined && Number.isFinite(v) && v > 0;
+  return ok(row) && ok(column) ? { row, column } : null;
 }
 
 /**

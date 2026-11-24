@@ -1,9 +1,13 @@
-import { Enums, RenderingEngine, cache, type Types } from '@cornerstonejs/core';
+import { Enums, RenderingEngine, type Types } from '@cornerstonejs/core';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { createAnnotationDrawing, type AnnotationDrawing } from './annotations/annotation-drawing';
+import type { ImageMapper } from './annotations/annotation-geometry';
+import { createImageMapper } from './annotations/image-mapper';
 import { initCornerstone } from './cornerstone-init';
 import { shouldRefitOnResize, type Size } from './viewer-math';
 import { useViewportInteractions } from './use-viewport-interactions';
 import { instrumentElement, trackEngine, trackObserver, viewerStats } from './viewer-stats';
+import { emptyLoad, releaseLoad } from './viewer-teardown';
 import {
   DEFAULT_VIEW,
   createViewportController,
@@ -19,6 +23,7 @@ import {
   imageIdFor,
   readBaselineInvert,
   readMetadata,
+  readPixelSpacing,
   type StackViewportLike,
   type ViewerMetadataValue,
   type ViewerState,
@@ -50,7 +55,7 @@ let engineCount = 0;
 export type DicomViewer = Omit<ViewState, 'session'> & {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   setWindowLevel(ww: number, wl: number): void;
-  /** Restores zoom, pan, rotation, flips, invert and window/level. */
+  /** Restores zoom, pan, rotation, flips, invert and window/level (not measurements). */
   resetView(): void;
   reset(): void;
   zoomBy(factor: number): void;
@@ -59,6 +64,8 @@ export type DicomViewer = Omit<ViewState, 'session'> & {
   flipV(): void;
   toggleInvert(): void;
   setTool(tool: ViewerTool): void;
+  /** Image <-> canvas mapping of the current load; null unless ready (never a destroyed viewport). */
+  getMapper(): ImageMapper | null;
 };
 
 export function useDicomViewer(studyId: string | null): DicomViewer {
@@ -66,6 +73,8 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
   const loadSeq = useRef(0);
   const disposed = useRef(false);
   const controllerRef = useRef<ViewportController | null>(null);
+  const drawingRef = useRef<AnnotationDrawing | null>(null);
+  const mapperRef = useRef<ImageMapper | null>(null);
   // The active tool survives study changes; everything else resets per image.
   const toolRef = useRef<ViewerTool>(DEFAULT_VIEW.tool);
   const [snap, setSnap] = useState<ViewState>({ ...IDLE, view: DEFAULT_VIEW });
@@ -93,12 +102,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
     const seq = loadSeq.current;
     disposed.current = false;
     const imageId = imageIdFor(studyId);
-    const owned: {
-      engine: RenderingEngine | null;
-      observer: ResizeObserver | null;
-      viewport: StackViewportLike | null;
-      controller: ViewportController | null;
-    } = { engine: null, observer: null, viewport: null, controller: null };
+    const owned = emptyLoad();
     // True when this load has been superseded (study change) or the viewer was
     // closed: the result must not touch the engine, the DOM or React state.
     const isStale = () => {
@@ -176,6 +180,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       // Read everything that can throw before publishing the load, so a
       // failure here cannot leave counters set next to an error state.
       const metadata = readMetadata(imageId);
+      const mapper = createImageMapper(viewport);
       const controller = createViewportController(viewport, {
         tool: toolRef.current,
         baselineInvert: readBaselineInvert(imageId),
@@ -186,7 +191,18 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
         },
       });
       owned.controller = controller;
+      owned.mapper = mapper;
+      if (mapper) {
+        owned.drawing = createAnnotationDrawing({
+          studyId,
+          spacing: readPixelSpacing(imageId),
+          imageSize: metadata ? { width: metadata.columns, height: metadata.rows } : null,
+          mapper,
+        });
+      }
       controllerRef.current = controller;
+      drawingRef.current = owned.drawing;
+      mapperRef.current = mapper;
       viewerStats.currentImageId = imageId;
       viewerStats.loadsCompleted += 1;
       setSnap({
@@ -208,42 +224,22 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       loadSeq.current += 1;
       disposed.current = true;
       controllerRef.current = null;
-      owned.controller?.dispose();
-      if (owned.observer) {
-        owned.observer.disconnect();
-        trackObserver(-1);
-      }
-      if (owned.viewport) {
-        // Cornerstone 5.19.4's CPU load callback ignores `isDisabled` and calls
-        // render() through the engine cache when a request lands after destroy,
-        // throwing an uncaught TypeError. Disarm the dead viewport so a late
-        // load settles quietly (and is then counted as discarded).
-        owned.viewport.render = () => undefined;
-      }
-      if (owned.engine) {
-        try {
-          owned.engine.destroy();
-        } catch {
-          // Already torn down; nothing left to release.
-        }
-        trackEngine(-1);
-      }
-      try {
-        cache.removeImageLoadObject(imageId);
-      } catch {
-        // Not cached (load never finished or failed): nothing to evict.
-      }
-      viewerStats.currentImageId = null;
+      drawingRef.current = null;
+      mapperRef.current = null;
+      releaseLoad(owned, imageId);
     };
   }, [studyId]);
 
   // Null once the load is superseded or closed, so late events are no-ops.
   const getController = useCallback(() => (disposed.current ? null : controllerRef.current), []);
+  const getDrawing = useCallback(() => (disposed.current ? null : drawingRef.current), []);
+  const getMapper = useCallback(() => (disposed.current ? null : mapperRef.current), []);
   useViewportInteractions({
     elementRef: containerRef,
     active: snap.state === 'ready',
     session: snap.session,
     getController,
+    getDrawing,
   });
 
   const setWindowLevel = useCallback(
@@ -259,11 +255,13 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
   const setTool = useCallback(
     (tool: ViewerTool) => {
       toolRef.current = tool;
+      // Switching tools mid-drawing drops the unfinished shape.
+      getDrawing()?.cancel();
       const c = getController();
       if (c) c.setTool(tool);
       else setSnap((s) => ({ ...s, view: { ...s.view, tool } }));
     },
-    [getController],
+    [getController, getDrawing],
   );
 
   return {
@@ -282,5 +280,6 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
     flipV,
     toggleInvert,
     setTool,
+    getMapper,
   };
 }

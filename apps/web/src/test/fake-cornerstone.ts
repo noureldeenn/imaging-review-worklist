@@ -97,6 +97,13 @@ export class RenderingEngine {
         y / s.scale + s.focal[1],
         0,
       ],
+      worldToCanvas: ([x, y]: P3) => [(x - s.focal[0]) * s.scale, (y - s.focal[1]) * s.scale],
+      // Image index == world (origin 0, unit spacing, identity direction).
+      getImageData: () => ({
+        origin: [0, 0, 0],
+        spacing: [1, 1, 1],
+        direction: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      }),
       setViewPresentation: (p: { rotation?: number }) => log('setViewPresentation', [p]),
     };
     fakeViewports.push(this.viewport as unknown as (typeof fakeViewports)[number]);

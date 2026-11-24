@@ -49,6 +49,13 @@ vi.mock('@cornerstonejs/core', async () => {
       setProperties: () => undefined,
       resetCamera: () => undefined,
       resetProperties: () => undefined,
+      canvasToWorld: ([x, y]: [number, number]) => [x, y, 0],
+      worldToCanvas: ([x, y]: [number, number, number]) => [x, y],
+      getImageData: () => ({
+        origin: [0, 0, 0],
+        spacing: [1, 1, 1],
+        direction: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      }),
     };
     constructor(readonly id: string) {
       fake.engines.push(this);
