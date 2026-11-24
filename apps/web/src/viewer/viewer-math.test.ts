@@ -4,6 +4,7 @@ import {
   ZOOM_MIN,
   ZOOM_STEP,
   clampZoom,
+  imageFlipAxis,
   normaliseRotation,
   pinchScale,
   wheelZoomFactor,
@@ -49,6 +50,16 @@ describe('rotation', () => {
     expect(normaliseRotation(-450)).toBe(270);
     expect(normaliseRotation(-0)).toBe(0);
     expect(normaliseRotation(45.5)).toBe(45.5);
+  });
+});
+
+describe('flip axis', () => {
+  it('maps screen flips to image axes, swapping them at quarter turns', () => {
+    expect(imageFlipAxis('h', 0)).toBe('h');
+    expect(imageFlipAxis('v', 180)).toBe('v');
+    expect(imageFlipAxis('h', 90)).toBe('v');
+    expect(imageFlipAxis('v', 270)).toBe('h');
+    expect(imageFlipAxis('h', -90)).toBe('v');
   });
 });
 

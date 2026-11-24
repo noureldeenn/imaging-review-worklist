@@ -139,7 +139,6 @@ export function ViewerToolbar({ view, disabled, actions }: Props) {
           hint="Flip horizontal (H)"
           icon={FlipHorizontal2}
           disabled={disabled}
-          pressed={view.flipH}
           onClick={actions.flipH}
         />
         <ToolButton
@@ -147,7 +146,6 @@ export function ViewerToolbar({ view, disabled, actions }: Props) {
           hint="Flip vertical (V)"
           icon={FlipVertical2}
           disabled={disabled}
-          pressed={view.flipV}
           onClick={actions.flipV}
         />
         <ToolButton

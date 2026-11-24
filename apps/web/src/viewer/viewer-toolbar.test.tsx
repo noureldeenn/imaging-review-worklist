@@ -55,9 +55,9 @@ describe('ViewerToolbar', () => {
     expect(pressed('Pan tool')).toBe('true');
     expect(pressed('Window/Level tool')).toBe('false');
     expect(pressed('Zoom tool')).toBe('false');
-    expect(pressed('Flip vertical')).toBe('true');
-    expect(pressed('Flip horizontal')).toBe('false');
     expect(pressed('Invert')).toBe('false');
+    // Flips are actions on the screen axes; their image-axis state is shown in the readout.
+    expect(pressed('Flip vertical')).toBeNull();
     expect(pressed('Zoom in')).toBeNull();
   });
 

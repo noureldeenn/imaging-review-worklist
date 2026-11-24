@@ -1,5 +1,6 @@
 import {
   clampZoom,
+  imageFlipAxis,
   normaliseRotation,
   windowLevelFromDrag,
   wlDragSensitivity,
@@ -14,7 +15,10 @@ import {
 
 export type ViewerTool = 'windowLevel' | 'pan' | 'zoom';
 
-/** Display transform of the current image (zoom is relative to fit: 1 = 100 %). */
+/**
+ * Display transform of the current image. Zoom is relative to fit (1 = 100 %);
+ * flipH/flipV are the image's own axes, applied before rotation.
+ */
 export type ViewTransform = {
   zoom: number;
   rotation: number;
@@ -47,7 +51,8 @@ export type ViewportController = {
   zoomBy(factor: number, anchor?: Point, timing?: Timing): void;
   panBy(dx: number, dy: number, timing?: Timing): void;
   rotateBy(degrees: number): void;
-  flip(axis: 'h' | 'v'): void;
+  /** Mirrors along a SCREEN axis (mapped to image axes for the current rotation). */
+  flip(screenAxis: 'h' | 'v'): void;
   toggleInvert(): void;
   setWindowLevel(ww: number, wl: number, timing?: Timing): void;
   dragWindowLevel(start: WindowLevel, dx: number, dy: number): void;
@@ -166,8 +171,10 @@ export function createViewportController(
       view = { ...view, rotation };
       commit('now');
     },
-    flip(axis) {
+    flip(screenAxis) {
       if (!live()) return;
+      // Buttons flip what is on screen; the view keeps Cornerstone's image-axis flags.
+      const axis = imageFlipAxis(screenAxis, view.rotation);
       view = axis === 'h' ? { ...view, flipH: !view.flipH } : { ...view, flipV: !view.flipV };
       viewport.setCamera({ flipHorizontal: view.flipH, flipVertical: view.flipV });
       commit('now');

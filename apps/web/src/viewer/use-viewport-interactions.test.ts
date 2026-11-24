@@ -265,4 +265,17 @@ describe('viewport interactions', () => {
     expect(result.current.view.zoom).toBe(20);
     expect(callsNamed('setZoom').at(-1)?.args).toEqual([40]);
   });
+
+  it('flips act on screen axes: at 90 degrees Flip horizontal mirrors the image rows', async () => {
+    const { result } = await mountReady();
+    act(() => result.current.rotateBy(90));
+    act(() => result.current.flipH());
+    // CPU flips are applied in image axes before rotation (presentation-state order).
+    expect(callsNamed('setCamera').at(-1)?.args).toEqual([
+      { flipHorizontal: false, flipVertical: true },
+    ]);
+    expect(result.current.view).toMatchObject({ rotation: 90, flipH: false, flipV: true });
+    key('v');
+    expect(result.current.view).toMatchObject({ rotation: 90, flipH: true, flipV: true });
+  });
 });

@@ -31,6 +31,17 @@ export function normaliseRotation(degrees: number): number {
   return r < 0 ? r + 360 : r === 0 ? 0 : r;
 }
 
+/**
+ * Image axis to mirror so the picture flips along the given SCREEN axis.
+ * Cornerstone's CPU path mirrors in image axes before rotating (the DICOM
+ * presentation-state order), so at 90/270 degrees the axes swap.
+ */
+export function imageFlipAxis(screenAxis: 'h' | 'v', rotation: number): 'h' | 'v' {
+  const quarterTurned = Math.round(normaliseRotation(rotation) / 90) % 2 === 1;
+  if (!quarterTurned) return screenAxis;
+  return screenAxis === 'h' ? 'v' : 'h';
+}
+
 /** Window units per dragged CSS pixel, scaled to the image's default window. */
 export function wlDragSensitivity(defaultWindowWidth: number): number {
   return Math.max(1, defaultWindowWidth / 256);

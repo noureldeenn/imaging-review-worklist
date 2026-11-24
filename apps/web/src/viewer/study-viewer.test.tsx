@@ -41,7 +41,8 @@ describe('StudyViewer controls', () => {
     await click('Flip vertical');
     expect(readout).toHaveTextContent('Zoom 125% · Rot 90°');
     expect(readout).toHaveTextContent('Inverted');
-    expect(readout).toHaveTextContent('Flipped V');
+    // Rotated 90 degrees, a screen-vertical flip mirrors the image's own columns.
+    expect(readout).toHaveTextContent('Flipped H');
     expect(screen.getByRole('button', { name: 'Invert' })).toHaveAttribute('aria-pressed', 'true');
 
     await click('Fit / Reset');
