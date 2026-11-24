@@ -1,5 +1,6 @@
 import { ImageOff, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
+import { AnnotationOverlay } from './annotations/annotation-overlay';
 import { useDicomViewer } from './use-dicom-viewer';
 import { useInfoStripOffset } from './use-info-strip-offset';
 import { useViewerBridge, type ViewerCommands } from './viewer-bridge';
@@ -64,6 +65,9 @@ export function StudyViewer({ studyId }: { studyId: string }) {
           aria-keyshortcuts={ARIA_KEYSHORTCUTS}
           tabIndex={0}
         />
+        {ready && (
+          <AnnotationOverlay studyId={studyId} revision={view} getMapper={viewer.getMapper} />
+        )}
         {state === 'loading' && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <p

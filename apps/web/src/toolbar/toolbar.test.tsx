@@ -11,9 +11,14 @@ const DESKTOP_ORDER = [
   'Levels (L)',
   'Pan (P)',
   'Zoom (Z)',
+  'Length',
+  'Angle',
+  'Ellipse',
+  'Rectangle',
   'Zoom in',
   'Zoom out',
   'Fit / Reset',
+  'Delete',
   'More',
 ];
 
@@ -25,7 +30,11 @@ const button = (name: string) => screen.getByRole('button', { name });
 
 /** Menu items of either role, in DOM order. */
 const menuItems = (menu: HTMLElement) =>
-  Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]'));
+  Array.from(
+    menu.querySelectorAll<HTMLElement>(
+      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]',
+    ),
+  );
 const itemRole = (name: string) => (name.startsWith('Invert') ? 'menuitemcheckbox' : 'menuitem');
 
 async function openMore(user: ReturnType<typeof userEvent.setup>) {
@@ -41,8 +50,10 @@ describe('Toolbar config', () => {
     expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual([
       'Panels',
       'Drag tool',
+      'Measurements',
       'Zoom steps',
       'Reset',
+      'Delete',
       'More tools',
     ]);
     expect(
@@ -130,7 +141,7 @@ describe('Toolbar config', () => {
     expect(button('Review')).toHaveAttribute('aria-controls', 'review-panel');
   });
 
-  it('below 900px: seven buttons, zoom steps move into More', async () => {
+  it('below 900px: seven buttons; measurements, zoom steps and Delete items move into More', async () => {
     const user = userEvent.setup();
     renderToolbar({}, true);
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
@@ -144,8 +155,14 @@ describe('Toolbar config', () => {
     ]);
     const menu = await openMore(user);
     expect(menuItems(menu).map((i) => i.textContent)).toEqual([
+      'Length',
+      'Angle',
+      'Ellipse',
+      'Rectangle',
       'Zoom in',
       'Zoom out',
+      'Delete selected',
+      'Clear measurements',
       'Invert (I)',
       'Rotate left (<)',
       'Rotate right (>)',

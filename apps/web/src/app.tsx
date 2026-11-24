@@ -2,6 +2,7 @@ import { MousePointerClick } from 'lucide-react';
 import { AppShell } from './components/app-shell';
 import { ReviewerSelect } from './components/reviewer-select';
 import { StudyPanel } from './components/study-panel';
+import { MeasurementsSection } from './layout/measurements-section';
 import { ReviewPanel } from './layout/review-panel';
 import { useLayoutState } from './layout/use-layout-state';
 import { WorklistDrawer } from './layout/worklist-drawer';
@@ -35,7 +36,10 @@ export function App() {
     <AppShell
       headerActions={<ReviewerSelect />}
       toolbar={
-        <AppToolbar layout={{ ...layout, reviewAttention: blocked || layout.feedbackUnseen }} />
+        <AppToolbar
+          layout={{ ...layout, reviewAttention: blocked || layout.feedbackUnseen }}
+          studyId={selectedStudyId}
+        />
       }
       viewer={
         selectedStudyId === null ? <EmptyViewer /> : <StudyViewerLazy studyId={selectedStudyId} />
@@ -54,6 +58,7 @@ export function App() {
               autoFocus={floating && layout.reviewOpen && layout.reviewFocusOnOpen}
               onFeedback={layout.revealReview}
             />
+            <MeasurementsSection studyId={selectedStudyId} />
           </ReviewPanel>
         )
       }

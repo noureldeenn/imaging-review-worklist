@@ -116,17 +116,20 @@ export const ToolbarMenu = forwardRef<HTMLButtonElement, Props>(function Toolbar
           id={menuId}
           role="menu"
           aria-label={item.tooltip}
-          className="absolute top-full right-0 z-50 mt-1 flex min-w-56 flex-col rounded-md border border-white/10 bg-popover p-1 shadow-xl shadow-black/60 max-[899px]:right-0"
+          className="absolute top-full right-0 z-50 mt-1 flex max-h-[calc(100dvh-7rem)] min-w-56 flex-col overflow-y-auto overscroll-contain rounded-md border border-white/10 bg-popover p-1 shadow-xl shadow-black/60 max-[899px]:right-0"
         >
           {items.map((child) => {
             const Icon = child.icon;
-            const checkable = child.checked !== undefined;
+            // A drag tool moved into the menu is a radio item (one tool is active).
+            const radio = child.kind === 'tool';
+            const checkable = radio || child.checked !== undefined;
+            const checked = radio ? child.pressed === true : child.checked;
             return (
               <button
                 key={child.id}
                 type="button"
-                role={checkable ? 'menuitemcheckbox' : 'menuitem'}
-                aria-checked={checkable ? child.checked : undefined}
+                role={radio ? 'menuitemradio' : checkable ? 'menuitemcheckbox' : 'menuitem'}
+                aria-checked={checkable ? checked : undefined}
                 tabIndex={-1}
                 disabled={child.disabled}
                 title={child.tooltip}
@@ -141,7 +144,7 @@ export const ToolbarMenu = forwardRef<HTMLButtonElement, Props>(function Toolbar
                 {checkable && (
                   <Check
                     aria-hidden="true"
-                    className={child.checked ? 'size-4 text-primary' : 'size-4 opacity-0'}
+                    className={checked ? 'size-4 text-primary' : 'size-4 opacity-0'}
                   />
                 )}
               </button>

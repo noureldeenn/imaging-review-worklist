@@ -4,7 +4,7 @@ import type { ViewerCommands } from '../viewer/viewer-bridge';
 import type { ViewTransform } from '../viewer/viewport-controller';
 
 /**
- * `tool`   changes what a drag does; one tool of a group is active (aria-pressed).
+ * `tool`   changes what a drag does; one tool is active (aria-pressed; menuitemradio in a menu).
  * `action` one-shot command (zoom step, rotate, flip, reset) or a panel toggle.
  * `menu`   opens a menu of further items (role="menu").
  */
@@ -16,6 +16,15 @@ export type ToolbarContext = {
   viewer: ViewerCommands | null;
   view: ViewTransform;
   layout: LayoutState & { reviewAttention: boolean };
+  /** The current study's measurements (in-memory store, no Cornerstone). */
+  measurements: MeasurementsContext;
+};
+
+export type MeasurementsContext = {
+  count: number;
+  hasSelection: boolean;
+  deleteSelected(): void;
+  clear(): void;
 };
 
 export type ToolbarItemSpec = {
@@ -39,7 +48,10 @@ export type ToolbarItemSpec = {
     isOpen(ctx: ToolbarContext): boolean;
     needsAttention?(ctx: ToolbarContext): boolean;
   };
-  /** Below 900px the item moves into the group's overflow menu (More). */
+  /**
+   * Below 900px the item moves into the overflow menu (More); a moved menu
+   * (Delete ▾) contributes its items instead of nesting a submenu.
+   */
   narrow?: 'menu';
   items?: ToolbarItemSpec[];
 };

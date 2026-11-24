@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { REVIEW_PANEL_ID, WORKLIST_DRAWER_ID } from '../layout/use-layout-state';
 import type { ViewerTool } from '../viewer/viewport-controller';
+import { DELETE_GROUP, MEASURE_GROUP } from './toolbar-measurements';
 import type {
   ToolbarContext,
   ToolbarGroup,
@@ -93,6 +94,7 @@ export const TOOLBAR_GROUPS: ToolbarGroupSpec[] = [
       tool('zoom', 'zoom', 'Zoom (Z)', 'Zoom: drag up/down to zoom (Z)', Search),
     ],
   },
+  MEASURE_GROUP,
   {
     id: 'zoom-steps',
     label: 'Zoom steps',
@@ -124,13 +126,15 @@ export const TOOLBAR_GROUPS: ToolbarGroupSpec[] = [
       {
         id: 'fit-reset',
         label: 'Fit / Reset',
-        tooltip: 'Fit the image and reset zoom, pan, rotation, flips, invert and window/level (0)',
+        tooltip:
+          'Fit the image and reset zoom, pan, rotation, flips, invert and window/level (0); measurements stay',
         icon: Maximize,
         kind: 'action',
         run: (ctx) => ctx.viewer?.reset(),
       },
     ],
   },
+  DELETE_GROUP,
   {
     id: 'more',
     label: 'More tools',
@@ -217,8 +221,9 @@ function resolveItem(spec: ToolbarItemSpec, ctx: ToolbarContext): ToolbarItem {
 
 /**
  * Resolves the config against the current state. Below 900px (`narrow`)
- * items marked `narrow: 'menu'` move to the front of the last menu, so the
- * phone row keeps seven 44px buttons.
+ * items marked `narrow: 'menu'` move to the front of the last menu (a moved
+ * menu contributes its own items: no nested submenus), so the phone row keeps
+ * seven 44px buttons.
  */
 export function resolveToolbar(
   groups: ToolbarGroupSpec[],
@@ -229,8 +234,9 @@ export function resolveToolbar(
   const kept = groups.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
-      if (narrow && item.narrow === 'menu') moved.push(item);
-      return !(narrow && item.narrow === 'menu');
+      if (!narrow || item.narrow !== 'menu') return true;
+      moved.push(...(item.kind === 'menu' ? (item.items ?? []) : [item]));
+      return false;
     }),
   }));
   const menu = [...kept]
