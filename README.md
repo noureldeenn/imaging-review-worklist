@@ -53,6 +53,7 @@ nginx serves the built SPA and proxies `/api` and `/docs` to the API. The API co
 | `npm run lint` / `lint:fix`       | ESLint (strict TypeScript rules, no `console`, no `any`).                                                                        |
 | `npm run typecheck`               | `tsc` for the API, the web app, the e2e project and the scripts.                                                                 |
 | `npm run format` / `format:check` | Prettier write / check.                                                                                                          |
+| `npm run import:dicom -- <dir>`   | Local-only import of your own DICOM files into the dev database (see below).                                                     |
 | `npm run app:up` / `app:down`     | Build and start / stop the full Docker stack (see above).                                                                        |
 | `npm run app:logs`                | Follow API and web container logs.                                                                                               |
 | `npm run db:migrate:test`         | Apply migrations to `imaging_test` (the test scripts call this for you).                                                         |
@@ -201,7 +202,7 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 - **412 blocks both actions.** After a stale response, Claim and Complete stay disabled for that study until "Refresh and continue", so a user never submits against state they have not seen.
 - **OHIF not used.** OHIF shows patient identifiers by default and ships measurement and multi-series features that are out of scope, and its internals do not expose the listener and engine counts the lifecycle tests assert on. A thin viewer on `@cornerstonejs/core` keeps the metadata whitelist provable ([ADR 0001](docs/adr/0001-thin-cornerstone-viewer-over-ohif.md)).
 - **Unpruned API image.** The API runtime image copies the workspace `node_modules` because the seed (`tsx`) and the Prisma CLI run at container start and are dev dependencies. The image is large; acceptable for a demo.
-- **Hard-coded modality filter options.** The filter offers CT, MR, CR, US and OT from a constant in the web app instead of loading them from the API.
+- **Hard-coded modality filter options.** The filter offers CT, MR, CR, US, DX, NM and OT from a constant in the web app instead of loading them from the API.
 - **Instrumentation always on.** The `window.__viewerStats` counters are tiny and carry no PHI, so they are present in all builds rather than only in a test build.
 
 ## PHI and security notes
@@ -212,6 +213,28 @@ Recorded on 2026-11-24 (Windows 11, Node 24, Docker Desktop, PostgreSQL 15).
 - `GET /api/studies/:id/file` resolves a fixed server-side map; a path-like id cannot escape the fixtures directory.
 - Helmet security headers on every response, CORS limited to the single configured web origin, `X-Request-Id` validated or regenerated, inputs validated with Zod.
 - The development database password (`imaging`) is a local default for the Docker Postgres bound to `127.0.0.1`. It is not a secret; change it for anything beyond a local demo.
+
+## Browsing your own DICOM files (local only)
+
+A dev-only CLI imports a sample of your own DICOM files into the **development** database so you can browse them in the viewer. It is not an upload feature: the API still takes only a study id, and the brief's upload exclusion still holds.
+
+```bash
+npm run db:up && npm run db:migrate
+# preview the plan, nothing is written
+npm run import:dicom -- "C:/path/to/dicom" "C:/path/to/more" --limit 40 --dry-run
+# import (defaults: --limit 40 --per-series 1)
+npm run import:dicom -- "C:/path/to/dicom" "C:/path/to/more" --limit 40
+```
+
+Options: `--limit N` (default 40), `--per-series K` (default 1, the middle slice; K picks K evenly spaced slices), `--modalities CT,MR,CR,US,DX,OT,NM`, `--transfer-syntaxes UID,UID` (default: the supported list below), `--dry-run`.
+
+- **What is imported.** Files ending `.dcm` or `.dicom`, found recursively. A series is the immediate parent directory. One slice per series is picked and series are taken round-robin across the folders you pass (and across modalities inside a folder), so a small `--limit` gives variety.
+- **What is skipped (and counted in the summary).** Unreadable files, non-images (SR, PR, DOC, RTPLAN), multi-frame, anything not MONOCHROME1/2 (RGB, palette), unsupported transfer syntaxes, and modalities outside `--modalities`.
+- **Privacy.** The tool reads only modality, rows, columns, frames, photometric interpretation, transfer syntax and study date, stops parsing before pixel data, and never prints, stores or displays patient tags (a unit test guards the tag allowlist). Worklist rows get synthetic ids (`local-001`...), the real modality, and a synthetic creation time.
+- **Where files go.** Copies are written to `local-dicom/<uuid>.dcm` plus `local-dicom/manifest.json`. The directory is git-ignored, Docker-ignored and prettier/eslint-ignored, so it never reaches git, an image or the submission zip. Override the location with `LOCAL_DICOM_DIR` (the importer and the API both read it).
+- **Warning.** Imported files may contain real patient data. Do not commit, share or screenshot them. `GET /api/studies/:id/file` serves the raw bytes of whatever you import, including every header tag, so use this only on your own machine.
+- **Re-running.** Source files already in the manifest are skipped, so a second run is a no-op. `npm run db:reset` removes the imported rows; run the import again and any manifest entry whose row is gone is re-created (same files, no copy).
+- **Rendering results** (Cornerstone3D, CPU rendering, checked in the browser): these render a real image with the metadata strip and no error: explicit VR little endian (1.2.840.10008.1.2.1), implicit VR little endian (1.2.840.10008.1.2), JPEG baseline/extended (4.50/4.51), JPEG lossless (4.57 and 4.70), JPEG 2000 (4.91) and RLE (1.2.840.10008.1.2.5). JPEG-LS (4.80/4.81) and JPEG 2000 lossless (4.90) are accepted by the importer, but no sample file was available to verify them.
 
 ## Port conflicts and environment variables
 
@@ -257,7 +280,7 @@ apps/
     Dockerfile, nginx.conf
 docker/                   docker-compose.yml (postgres, plus api and web under the app profile)
 fixtures/                 gradient.dcm, checkerboard.dcm, corrupt.dcm
-scripts/                  contention-smoke.ts (two-process race)
+scripts/                  contention-smoke.ts (two-process race), import-dicom*.ts (local import)
 docs/
   architecture.md         component and sequence diagrams
   adr/                    architecture decision records
@@ -275,8 +298,9 @@ docs/
 
 ## Known limitations
 
+- Imported studies (`npm run import:dicom`) are local-only and git-ignored; the brief's upload exclusion still holds.
 - The window width and level sliders use fixed 16-bit ranges, so they are coarse for a 16-bit image; the keyboard arrow keys give precise steps.
-- The modality filter options are static (CT, MR, CR, US, OT), not loaded from the API.
+- The modality filter options are static (CT, MR, CR, US, DX, NM, OT), not loaded from the API.
 - One generic viewer failure message covers every load failure (corrupt, unsupported, network).
 - Completed is terminal with exactly one note, by design: no edit, release or reassignment.
 - The API Docker image is not pruned and is large.
