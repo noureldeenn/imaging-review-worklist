@@ -139,6 +139,8 @@ Errors share one envelope, `{ code, message, current? }`, where `current` is the
 | 412    | `STALE_VERSION`    | `expectedVersion` is not the current version; carries `current`                     |
 | 409    | `INVALID_STATE`    | Claim of a non-Unassigned study, or completion of a non-InReview study              |
 | 403    | `NOT_OWNER`        | Completion of an InReview study by a reviewer who does not own it (current version) |
+| 404    | `NOT_FOUND`        | Unknown route                                                                       |
+| 4xx    | `REQUEST_REJECTED` | Framework-level rejection, for example an oversized body (413)                      |
 
 Checks run in a fixed order: **input, existence, version, status, ownership**. The review note is trimmed and must be 1 to 1000 characters. A failed or stale request changes nothing.
 

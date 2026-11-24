@@ -27,6 +27,8 @@ export const ApiErrorCode = z.enum([
   'STALE_VERSION',
   'INVALID_STATE',
   'NOT_OWNER',
+  'NOT_FOUND',
+  'REQUEST_REJECTED',
   'INTERNAL',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCode>;

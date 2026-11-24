@@ -12,6 +12,10 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   retries: 0,
+  // The first open of a study in each fresh browser context loads the lazy Cornerstone
+  // chunk from the Vite dev server; give a cold or slow machine room.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : 'list',
   globalSetup: './e2e/global-setup.ts',
   use: { baseURL: 'http://localhost:5173' },
