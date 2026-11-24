@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deferred, type Deferred } from '../test/deferred';
 import { useDicomViewer } from './use-dicom-viewer';
+import { INTERACTION_LISTENERS } from './use-viewport-interactions';
 import { viewerStats } from './viewer-stats';
 
 // The real rendering engine needs a browser canvas pipeline; it is covered by
@@ -196,7 +197,8 @@ describe('useDicomViewer', () => {
       await act(async () => s.d.resolve('ok'));
       await waitFor(() => expect(result.current.state).toBe('ready'));
       expect(viewerStats.engines).toBe(1);
-      expect(viewerStats.elementListeners).toBe(baseline + 1);
+      // engine wheel listener + the viewer's own interaction listeners
+      expect(viewerStats.elementListeners).toBe(baseline + 1 + INTERACTION_LISTENERS);
       unmount();
       fake.stacks.length = 0;
     }

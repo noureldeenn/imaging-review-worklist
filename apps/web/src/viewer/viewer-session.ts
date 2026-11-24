@@ -18,14 +18,27 @@ export const WW_MAX = 65535;
 export const WL_MIN = -32768;
 export const WL_MAX = 65535;
 
-/** Minimal surface of a StackViewport the hook relies on. */
+type Point3 = [number, number, number];
+
+/** Minimal surface of a StackViewport the hook and the view controller rely on. */
 export type StackViewportLike = {
   setStack(imageIds: string[]): Promise<string>;
   render(): void;
-  getProperties(): { voiRange?: { lower: number; upper: number } };
-  setProperties(props: { voiRange: { lower: number; upper: number } }): void;
+  getProperties(): { voiRange?: { lower: number; upper: number }; invert?: boolean };
+  setProperties(props: { voiRange?: { lower: number; upper: number }; invert?: boolean }): void;
   resetCamera(): unknown;
   resetProperties(): void;
+  getZoom(): number;
+  setZoom(zoom: number): void;
+  getCamera(): { focalPoint?: Point3; position?: Point3 };
+  setCamera(camera: {
+    focalPoint?: Point3;
+    position?: Point3;
+    flipHorizontal?: boolean;
+    flipVertical?: boolean;
+  }): void;
+  canvasToWorld(canvasPos: [number, number]): Point3;
+  setViewPresentation(presentation: { rotation?: number }): void;
 };
 
 export function imageIdFor(studyId: string): string {

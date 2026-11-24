@@ -1,16 +1,22 @@
 import { Enums, RenderingEngine, cache, type Types } from '@cornerstonejs/core';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { initCornerstone } from './cornerstone-init';
+import { useViewportInteractions } from './use-viewport-interactions';
 import { instrumentElement, trackEngine, trackObserver, viewerStats } from './viewer-stats';
+import {
+  DEFAULT_VIEW,
+  createViewportController,
+  type ControllerSnapshot,
+  type ViewTransform,
+  type ViewerTool,
+  type ViewportController,
+} from './viewport-controller';
 import {
   DECODE_ERROR,
   INIT_ERROR,
   VIEWPORT_ID,
-  clampWindowLevel,
   imageIdFor,
   readMetadata,
-  readWindowLevel,
-  voiRangeFor,
   type StackViewportLike,
   type ViewerMetadataValue,
   type ViewerState,
@@ -22,31 +28,51 @@ type ViewState = {
   error: string | null;
   metadata: ViewerMetadataValue | null;
   windowLevel: WindowLevel | null;
+  view: ViewTransform;
+  /** Load sequence that produced `ready`; interactions are bound per session. */
+  session: number;
 };
 
-const IDLE: ViewState = { state: 'idle', error: null, metadata: null, windowLevel: null };
+const IDLE: Omit<ViewState, 'view'> = {
+  state: 'idle',
+  error: null,
+  metadata: null,
+  windowLevel: null,
+  session: 0,
+};
 
 // Rendering engines are looked up by id in a global cache, so ids must never be
 // reused: a stale viewport resolving late would otherwise reach the NEXT viewer.
 let engineCount = 0;
 
-export type DicomViewer = ViewState & {
+export type DicomViewer = Omit<ViewState, 'session'> & {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   setWindowLevel(ww: number, wl: number): void;
+  /** Restores zoom, pan, rotation, flips, invert and window/level. */
   resetView(): void;
+  reset(): void;
+  zoomBy(factor: number): void;
+  rotateBy(degrees: number): void;
+  flipH(): void;
+  flipV(): void;
+  toggleInvert(): void;
+  setTool(tool: ViewerTool): void;
 };
 
 export function useDicomViewer(studyId: string | null): DicomViewer {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const loadSeq = useRef(0);
   const disposed = useRef(false);
-  const viewportRef = useRef<StackViewportLike | null>(null);
-  const [view, setView] = useState<ViewState>(IDLE);
+  const controllerRef = useRef<ViewportController | null>(null);
+  // The active tool survives study changes; everything else resets per image.
+  const toolRef = useRef<ViewerTool>(DEFAULT_VIEW.tool);
+  const [snap, setSnap] = useState<ViewState>({ ...IDLE, view: DEFAULT_VIEW });
 
   useEffect(() => {
     const el = containerRef.current;
+    const idleView = { ...DEFAULT_VIEW, tool: toolRef.current };
     if (studyId === null || el === null) {
-      setView(IDLE);
+      setSnap({ ...IDLE, view: idleView });
       return;
     }
     loadSeq.current += 1;
@@ -57,7 +83,8 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       engine: RenderingEngine | null;
       observer: ResizeObserver | null;
       viewport: StackViewportLike | null;
-    } = { engine: null, observer: null, viewport: null };
+      controller: ViewportController | null;
+    } = { engine: null, observer: null, viewport: null, controller: null };
     // True when this load has been superseded (study change) or the viewer was
     // closed: the result must not touch the engine, the DOM or React state.
     const isStale = () => {
@@ -67,15 +94,16 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       }
       return false;
     };
+    const fail = (error: string) => setSnap({ ...IDLE, view: idleView, state: 'error', error });
 
-    setView({ ...IDLE, state: 'loading' });
+    setSnap({ ...IDLE, view: idleView, state: 'loading' });
 
     const run = async () => {
       try {
         await initCornerstone();
       } catch {
         if (isStale()) return;
-        setView({ ...IDLE, state: 'error', error: INIT_ERROR });
+        fail(INIT_ERROR);
         return;
       }
       if (isStale()) return;
@@ -95,8 +123,12 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
 
       let loaded = false;
       const observer = new ResizeObserver(() => {
+        // keepCamera=false: the image is refitted to the new size; the
+        // controller then re-applies flips and reports zoom back at 100 %.
         engine.resize(true, false);
-        if (loaded) viewport.render();
+        if (!loaded) return;
+        owned.controller?.afterResize();
+        viewport.render();
       });
       observer.observe(el);
       owned.observer = observer;
@@ -108,7 +140,7 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
         if (isStale()) return;
         // Engine stays alive while the error is shown; the effect cleanup
         // (study change or close) releases it like any other load.
-        setView({ ...IDLE, state: 'error', error: DECODE_ERROR });
+        fail(DECODE_ERROR);
         return;
       }
       if (isStale()) return;
@@ -118,22 +150,38 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
       // Read everything that can throw before publishing the load, so a
       // failure here cannot leave counters set next to an error state.
       const metadata = readMetadata(imageId);
-      const windowLevel = readWindowLevel(viewport);
-      viewportRef.current = viewport;
+      const controller = createViewportController(viewport, {
+        tool: toolRef.current,
+        onChange: ({ view, windowLevel }: ControllerSnapshot) => {
+          if (seq !== loadSeq.current) return;
+          toolRef.current = view.tool;
+          setSnap((s) => ({ ...s, view, windowLevel }));
+        },
+      });
+      owned.controller = controller;
+      controllerRef.current = controller;
       viewerStats.currentImageId = imageId;
       viewerStats.loadsCompleted += 1;
-      setView({ state: 'ready', error: null, metadata, windowLevel });
+      setSnap({
+        state: 'ready',
+        error: null,
+        metadata,
+        windowLevel: controller.windowLevel(),
+        view: { ...DEFAULT_VIEW, tool: toolRef.current },
+        session: seq,
+      });
     };
     run().catch(() => {
       // Engine/viewport setup itself failed (e.g. no canvas support).
       if (isStale()) return;
-      setView({ ...IDLE, state: 'error', error: INIT_ERROR });
+      fail(INIT_ERROR);
     });
 
     return () => {
       loadSeq.current += 1;
       disposed.current = true;
-      viewportRef.current = null;
+      controllerRef.current = null;
+      owned.controller?.dispose();
       if (owned.observer) {
         owned.observer.disconnect();
         trackObserver(-1);
@@ -162,24 +210,50 @@ export function useDicomViewer(studyId: string | null): DicomViewer {
     };
   }, [studyId]);
 
-  const setWindowLevel = useCallback((ww: number, wl: number) => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const next = clampWindowLevel(ww, wl);
-    viewport.setProperties({ voiRange: voiRangeFor(next) });
-    viewport.render();
-    setView((v) => ({ ...v, windowLevel: next }));
-  }, []);
+  // Null once the load is superseded or closed, so late events are no-ops.
+  const getController = useCallback(() => (disposed.current ? null : controllerRef.current), []);
+  useViewportInteractions({
+    elementRef: containerRef,
+    active: snap.state === 'ready',
+    session: snap.session,
+    getController,
+  });
 
-  const resetView = useCallback(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    viewport.resetCamera();
-    viewport.resetProperties();
-    viewport.render();
-    const windowLevel = readWindowLevel(viewport);
-    setView((v) => ({ ...v, windowLevel }));
-  }, []);
+  const setWindowLevel = useCallback(
+    (ww: number, wl: number) => getController()?.setWindowLevel(ww, wl),
+    [getController],
+  );
+  const reset = useCallback(() => getController()?.reset(), [getController]);
+  const zoomBy = useCallback((f: number) => getController()?.zoomBy(f), [getController]);
+  const rotateBy = useCallback((d: number) => getController()?.rotateBy(d), [getController]);
+  const flipH = useCallback(() => getController()?.flip('h'), [getController]);
+  const flipV = useCallback(() => getController()?.flip('v'), [getController]);
+  const toggleInvert = useCallback(() => getController()?.toggleInvert(), [getController]);
+  const setTool = useCallback(
+    (tool: ViewerTool) => {
+      toolRef.current = tool;
+      const c = getController();
+      if (c) c.setTool(tool);
+      else setSnap((s) => ({ ...s, view: { ...s.view, tool } }));
+    },
+    [getController],
+  );
 
-  return { ...view, containerRef, setWindowLevel, resetView };
+  return {
+    state: snap.state,
+    error: snap.error,
+    metadata: snap.metadata,
+    windowLevel: snap.windowLevel,
+    view: snap.view,
+    containerRef,
+    setWindowLevel,
+    resetView: reset,
+    reset,
+    zoomBy,
+    rotateBy,
+    flipH,
+    flipV,
+    toggleInvert,
+    setTool,
+  };
 }
